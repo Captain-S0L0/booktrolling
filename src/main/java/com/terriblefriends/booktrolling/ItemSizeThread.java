@@ -17,6 +17,7 @@ public class ItemSizeThread extends Thread {
     public long diskSize = -1;
     public long nbtSize = -1;
     public long compressedSize = -1;
+    public boolean uncompressible = false;
     private boolean forceStop = false;
     private boolean changedStack = false;
     private final Deflater deflater = new Deflater();
@@ -28,6 +29,7 @@ public class ItemSizeThread extends Thread {
             this.diskSize = -1;
             this.nbtSize = -1;
             this.compressedSize = -1;
+            this.uncompressible = false;
             this.changedStack = true;
         }
     }
@@ -84,13 +86,15 @@ public class ItemSizeThread extends Thread {
                         this.deflater.reset();
 
                         if (PacketByteBuf.getVarIntLength(compressionBuf.readableBytes()) > 3) {
-                            this.compressedSize = -9001;
+                            this.uncompressible = true;
                         }
                         else {
-                            this.compressedSize = compressionBuf.readableBytes();
+                            uncompressible = false;
                         }
+                        this.compressedSize = compressionBuf.readableBytes();
                     }
                     else {
+                        uncompressible = true;
                         this.compressedSize = -9001;
                     }
 
@@ -103,8 +107,6 @@ public class ItemSizeThread extends Thread {
 
                 } catch (Exception e) {
                     this.diskSize = -1137;
-                    this.nbtSize = -1137;
-                    this.compressedSize = -1137;
                     LogUtils.getLogger().error("Error calculating stack size!", e);
                 }
             }

@@ -46,7 +46,7 @@ public class ItemMixin {
                 tooltip.add(Text.literal("NBT: " + itemSizeThread.nbtSize).formatted(Formatting.RED));
             }
 
-            if (itemSizeThread.compressedSize == -9001) {
+            if (itemSizeThread.uncompressible) {
                 tooltip.add(Text.literal("COMPRESS: "+itemSizeThread.compressedSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));
             }
             else {
