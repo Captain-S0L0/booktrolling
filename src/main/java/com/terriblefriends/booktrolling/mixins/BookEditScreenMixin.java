@@ -44,10 +44,10 @@ public abstract class BookEditScreenMixin extends Screen {
     private boolean overloading = false;
     private boolean use3ByteChars = false;
     private boolean use4ByteChars = false;
-    private boolean useOneChar = false;
     private boolean clear = false;
     private int overloadAmount = 0;
     private static boolean sign = false;
+    private static boolean randomizeChars = true;
 
 
 
@@ -67,18 +67,25 @@ public abstract class BookEditScreenMixin extends Screen {
                 for (int page = 0; page < 100; page++) {
                     stringBuilder = new StringBuilder();
 
-                    if (use4ByteChars) {
-                        for (int characters = 0; characters < overloadAmount; characters++) {
-                            stringBuilder.append(Character.toChars(rand.nextInt(65536, 1114111)));
+                    if (randomizeChars) {
+                        if (use4ByteChars) {
+                            for (int characters = 0; characters < overloadAmount; characters++) {
+                                stringBuilder.append(Character.toChars(rand.nextInt(65536, 1114111)));
+                            }
+                        }
+                        if (use3ByteChars) {
+                            for (int characters = 0; characters < overloadAmount; characters++) {
+                                stringBuilder.append(Character.toChars(rand.nextInt(2048, 65536)));
+                            }
                         }
                     }
-                    if (use3ByteChars) {
-                        for (int characters = 0; characters < overloadAmount; characters++) {
-                            stringBuilder.append(Character.toChars(rand.nextInt(2048, 65536)));
+                    else {
+                        if (use4ByteChars) {
+                            stringBuilder.append(String.valueOf((char) 65536).repeat(Math.max(0, overloadAmount)));
                         }
-                    }
-                    if (useOneChar) {
-                        stringBuilder.append(String.valueOf((char) 2048).repeat(Math.max(0, overloadAmount)));
+                        if (use3ByteChars) {
+                            stringBuilder.append(String.valueOf((char) 2048).repeat(Math.max(0, overloadAmount)));
+                        }
                     }
 
                     String currentPage = stringBuilder.toString();
@@ -135,30 +142,6 @@ public abstract class BookEditScreenMixin extends Screen {
             this.client.setScreen(null);
         }).dimensions(0, y, 98, 20).build());
         y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("paper bookban"), (button) -> {
-            this.overloading = true;
-            this.useOneChar = true;
-            this.overloadAmount = 320;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("bookban 1"), (button) -> {
-            this.overloading = true;
-            this.useOneChar = true;
-            this.overloadAmount = 8192;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("bookban 2"), (button) -> {
-            this.overloading = true;
-            this.useOneChar = true;
-            this.overloadAmount = 2246;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("clear"), (button) -> {
             this.overloading = true;
             this.clear = true;
@@ -170,5 +153,8 @@ public abstract class BookEditScreenMixin extends Screen {
         this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("AutoSign"), () -> {
             sign = !sign;
         }, sign));
+        this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("RandomizeChars"), () -> {
+            randomizeChars = !randomizeChars;
+        }, randomizeChars));
     }
 }
