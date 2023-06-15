@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "id": "booktrolling",
+  "version": "${version}",
+  "name": "Booktrolling",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/booktrolling/icon.png",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.terriblefriends.booktrolling.Booktrolling"
+    ]
+  },
+  "mixins": [
+    "booktrolling.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=0.14.10",
+    "minecraft": "1.20.X"
+  }
+}

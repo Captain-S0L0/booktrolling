@@ -1,0 +1,34 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "com.terriblefriends.booktrolling.mixins",
+  "compatibilityLevel": "JAVA_17",
+  "mixins": [
+    "BookEditScreenMixin",
+    "ClientConnectionMixin",
+    "GameMenuScreenMixin",
+    "ItemEntityMixin",
+    "ItemMixin",
+    "PacketByteBufMixin",
+    "WrittenBookItemMixin",
+
+    "tooltips.BannerItemMixin",
+    "tooltips.BannerPatternItemMixin",
+    "tooltips.BundleItemMixin",
+    "tooltips.CrossbowItemMixin",
+    "tooltips.DiscFragmentItemMixin",
+    "tooltips.EntityBucketItemMixin",
+    "tooltips.FilledMapItemMixin",
+    "tooltips.FireworkRocketItemMixin",
+    "tooltips.FireworkStarItemMixin",
+    "tooltips.LingeringPotionItemMixin",
+    "tooltips.MusicDiscItemMixin",
+    "tooltips.PotionItemMixin",
+    "tooltips.ShieldItemMixin",
+    "tooltips.TippedArrowItemMixin",
+    "tooltips.WrittenBookItemMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
