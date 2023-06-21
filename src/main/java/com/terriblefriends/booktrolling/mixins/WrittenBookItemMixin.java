@@ -17,8 +17,7 @@ public class WrittenBookItemMixin {
         } else if (!nbt.contains("title", 8)) {
             cir.setReturnValue(false);
         } else {
-            String string = nbt.getString("title");
-            cir.setReturnValue(string.length() <= 128 && nbt.contains("author", 8));
+            cir.setReturnValue(nbt.contains("title") && nbt.contains("author", 8));
         }
         cir.cancel();
     }

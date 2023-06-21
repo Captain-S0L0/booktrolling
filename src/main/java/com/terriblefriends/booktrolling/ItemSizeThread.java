@@ -13,90 +13,73 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.zip.Deflater;
 
 public class ItemSizeThread extends Thread {
-    private ItemStack stack = null;
-    public long diskSize = -1;
-    public long nbtSize = -1;
-    public long compressedSize = -1;
-    public boolean uncompressible = false;
-    private boolean forceStop = false;
-    private boolean changedStack = false;
+
+    public ItemSizeThread(ItemStack stack) {
+        this.stack = stack;
+    }
+
+    private ItemStack stack;
     private final Deflater deflater = new Deflater();
     private final byte[] deflateBuffer = new byte[8192];
 
-    public void setStack(ItemStack stack) {
-        if (stack != null && stack != this.stack) {
-            this.stack = stack;
-            this.diskSize = -1;
-            this.nbtSize = -1;
-            this.compressedSize = -1;
-            this.uncompressible = false;
-            this.changedStack = true;
-        }
+    private Results results = new Results();
+    public Results getResults() {
+        return results;
     }
-
-    public void forceStop() {
-        this.forceStop = true;
-    }
-
 
     @Override
     public void run() {
-        while (!forceStop) {
-            if (stack != null && changedStack) {
-                try {
-                    changedStack = false;
-                    PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-                    buf.writeItemStack(this.stack);
-                    this.diskSize = buf.readableBytes();
+        try {
+            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
+            buf.writeItemStack(this.stack);
+            this.results.diskSize = buf.readableBytes();
 
-                    buf.readBoolean();
-                    ItemStack itemStack = new ItemStack(buf.readRegistryValue(Registries.ITEM), buf.readByte());
+            buf.readBoolean();
+            ItemStack itemStack = new ItemStack(buf.readRegistryValue(Registries.ITEM), buf.readByte());
 
-                    AtomicLong byteTracker = new AtomicLong(0);
+            AtomicLong byteTracker = new AtomicLong(0);
 
-                    int i = buf.readerIndex();
-                    byte b = buf.readByte();
-                    if (b != 0) {
-                        buf.readerIndex(i);
-                        ByteBufInputStream BBIS = new ByteBufInputStream(buf);
+            int i = buf.readerIndex();
+            byte b = buf.readByte();
+            if (b != 0) {
+                buf.readerIndex(i);
+                ByteBufInputStream BBIS = new ByteBufInputStream(buf);
 
-                        NbtTagSizeTracker tracker = new NbtTagSizeTracker(0L) {
-                            public void add(long bytes) {
-                                byteTracker.set(byteTracker.get() + bytes);
-                            }
-                        };
-                        itemStack.setNbt(NbtIo.read(BBIS, tracker));
+                NbtTagSizeTracker tracker = new NbtTagSizeTracker(0L) {
+                    public void add(long bytes) {
+                        byteTracker.set(byteTracker.get() + bytes);
                     }
+                };
+                itemStack.setNbt(NbtIo.read(BBIS, tracker));
+            }
 
-                    this.nbtSize = byteTracker.get();
+            this.results.nbtSize = byteTracker.get();
 
-                    PacketByteBuf compressionBuf = new PacketByteBuf(Unpooled.buffer());
-                    if (this.diskSize > 0 && this.diskSize <= 2147483645) {
-                        buf.resetReaderIndex();
-                        byte[] bs = buf.getWrittenBytes();
-                        compressionBuf.writeVarInt(bs.length);
-                        deflater.setInput(bs, 0, (int)this.diskSize);
-                        deflater.finish();
+            PacketByteBuf compressionBuf = new PacketByteBuf(Unpooled.buffer());
+            if (this.results.diskSize > 0 && this.results.diskSize <= 2147483645) {
+                buf.resetReaderIndex();
 
-                        while (!this.deflater.finished()) {
-                            int j = this.deflater.deflate(this.deflateBuffer);
-                            compressionBuf.writeBytes(this.deflateBuffer, 0, j);
-                        }
+                byte[] bs = buf.getWrittenBytes();
+                compressionBuf.writeVarInt(bs.length);
+                deflater.setInput(bs, 0, (int) this.results.diskSize);
+                deflater.finish();
 
-                        this.deflater.reset();
+                while (!this.deflater.finished()) {
+                    int j = this.deflater.deflate(this.deflateBuffer);
+                    compressionBuf.writeBytes(this.deflateBuffer, 0, j);
+                }
 
-                        if (PacketByteBuf.getVarIntLength(compressionBuf.readableBytes()) > 3) {
-                            this.uncompressible = true;
-                        }
-                        else {
-                            uncompressible = false;
-                        }
-                        this.compressedSize = compressionBuf.readableBytes();
-                    }
-                    else {
-                        uncompressible = true;
-                        this.compressedSize = -9001;
-                    }
+                this.deflater.reset();
+
+                if (PacketByteBuf.getVarIntLength(compressionBuf.readableBytes()) > 3) {
+                    this.results.uncompressible = true;
+                } else {
+                    this.results.uncompressible = false;
+                }
+                this.results.compressedSize = compressionBuf.readableBytes();
+            } else {
+                this.results.moreThanIntLimit = true;
+            }
 
                     /*if (byteCount >= 1024 && byteCount < 1048576)
                         tempSize = String.format("%.2f kb", byteCount / (float) 1024);
@@ -105,20 +88,19 @@ public class ItemSizeThread extends Thread {
                     else if (byteCount >= 1073741824) tempSize = String.format("%.2f Gb", byteCount / (float) 1073741824);
                     else tempSize = String.format("%d bytes", byteCount);*/
 
-                } catch (Exception e) {
-                    this.diskSize = -1137;
-                    LogUtils.getLogger().error("Error calculating stack size!", e);
-                }
-            }
-            else {
-                try {
-                    Thread.sleep(100);
-                } catch (InterruptedException e) {
-                    throw new RuntimeException(e);
-                }
-            }
+        } catch (Exception e) {
+            this.results.error = true;
+            LogUtils.getLogger().error("Error calculating stack size!", e);
         }
-        LogUtils.getLogger().error("Item Size Thread Death!");
+    }
+
+    public class Results {
+        public long diskSize = -1;
+        public long nbtSize = -1;
+        public long compressedSize = -1;
+        public boolean uncompressible = false;
+        public boolean moreThanIntLimit = false;
+        public boolean error = false;
     }
 
 }
