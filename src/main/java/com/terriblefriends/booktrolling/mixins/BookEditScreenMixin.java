@@ -17,6 +17,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,7 +40,7 @@ public abstract class BookEditScreenMixin extends Screen {
         return MinecraftClient.getInstance().isInSingleplayer() ? string.length() <= 32767 : string.length() <= 8192;
     });;
     @Final @Shadow @Mutable private SelectionManager bookTitleSelectionManager = new SelectionManager(() -> this.title, title -> this.title = title, this::getClipboard, this::setClipboard, (string) -> {
-        return string.length() <= 128;
+        return MinecraftClient.getInstance().isInSingleplayer() ? string.length() <= 65535 : string.length() <= 128;
     });
     private boolean overloading = false;
     private boolean use3ByteChars = false;
@@ -110,7 +111,7 @@ public abstract class BookEditScreenMixin extends Screen {
     @Inject(at=@At("HEAD"),method="Lnet/minecraft/client/gui/screen/ingame/BookEditScreen;init()V")
     private void addNewButtons(CallbackInfo ci) {
         int y = 0;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("vanilla"), (button) -> {
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
             this.overloading = true;
             this.use3ByteChars = true;
             this.overloadAmount = 1023;
@@ -121,7 +122,7 @@ public abstract class BookEditScreenMixin extends Screen {
         this.addDrawableChild(ButtonWidget.builder(Text.literal("singleplayer"), (button) -> {
             this.overloading = true;
             this.use3ByteChars = true;
-            this.overloadAmount = 21845;//21837 if signing
+            this.overloadAmount = 21837;//21837 if signing, 21845 if not
             this.finalizeBook(false);
             this.client.setScreen(null);
         }).dimensions(0, y, 98, 20).build());
@@ -156,5 +157,50 @@ public abstract class BookEditScreenMixin extends Screen {
         this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("RandomizeChars"), () -> {
             randomizeChars = !randomizeChars;
         }, randomizeChars));
+    }
+
+    @Inject(at=@At("HEAD"),method="keyPressedSignMode",cancellable = true)
+    private void allowCopyPasteTitle(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        boolean returnvalue;
+        if (Screen.isSelectAll(keyCode)) {
+            this.bookTitleSelectionManager.selectAll();
+            returnvalue = true;
+        } else if (Screen.isCopy(keyCode)) {
+            this.bookTitleSelectionManager.copy();
+            returnvalue = true;
+        } else if (Screen.isPaste(keyCode)) {
+            this.bookTitleSelectionManager.paste();
+            returnvalue = true;
+        } else if (Screen.isCut(keyCode)) {
+            this.bookTitleSelectionManager.cut();
+            returnvalue = true;
+        } else {
+            SelectionManager.SelectionType selectionType = Screen.hasControlDown() ? SelectionManager.SelectionType.WORD : SelectionManager.SelectionType.CHARACTER;
+            switch (keyCode) {
+                case 257, 335 -> {
+                    this.bookTitleSelectionManager.insert("\n");
+                    returnvalue = true;
+                }
+                case 259 -> {
+                    this.bookTitleSelectionManager.delete(-1, selectionType);
+                    returnvalue = true;
+                }
+                case 261 -> {
+                    this.bookTitleSelectionManager.delete(1, selectionType);
+                    returnvalue = true;
+                }
+                case 262 -> {
+                    this.bookTitleSelectionManager.moveCursor(1, Screen.hasShiftDown(), selectionType);
+                    returnvalue = true;
+                }
+                case 263 -> {
+                    this.bookTitleSelectionManager.moveCursor(-1, Screen.hasShiftDown(), selectionType);
+                    returnvalue = true;
+                }
+                default -> returnvalue = false;
+            }
+        }
+        cir.setReturnValue(returnvalue);
+        cir.cancel();
     }
 }
