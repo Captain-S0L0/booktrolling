@@ -4,8 +4,8 @@ A collection of tools for ~~exploiting~~ working with written books in Minecraft
 
 
 **Changes provided:**
-  - Allows up to 8,192 characters / page in multiplayer (limit of book update packet), or 32,767 in singleplayer
-  - Allows titles up to 128 characters in length (limit of book update packet)
+  - Allows up to 8,192 characters / page in multiplayer (limit of BookUpdateC2SPacket.write()), or 32,767 in singleplayer (limit of WritableBookItem.isValid())
+  - Allows titles up to 128 characters in length in multiplayer (limit of BookUpdateC2SPacket.write()), or 65,535 in singleplayer (limit of NbtString.write())
   - Allows written books with titles > 31 characters in length to be parsed (in vanilla, books with titles longer than 31 characters are treated as "invalid" and will not display contents on book screen)
   - Prevents client-side kicks as a result of NbtTagSizeTracker tracking more than 2,097,152 bytes
   - Toggleable item size debug information in hover tooltip (toggleable on in-game pause menu, default false)
@@ -13,8 +13,8 @@ A collection of tools for ~~exploiting~~ working with written books in Minecraft
 
 **Book Presets:**
   - Vanilla: 100 pages each with 1,023 3 byte characters (this is achieveable in vanilla by utilizing a resource pack to edit the width of characters, then limited by a hardcoded < 1024 character check in the book edit GUI)<br>
-  - Singleplayer: 100 pages each with 21,845 3 byte characters (singleplayer only, limited by NbtString requiring string lengths to be <= 65,535 bytes long or they won't write to disk)
-  - Multiplayer: 100 pages each with 8,192 3 byte characters (limit of the book update packet)
+  - Singleplayer: 100 pages each with 21,837 3 byte characters (singleplayer only, limit of NbtString.write())
+  - Multiplayer: 100 pages each with 8,192 3 byte characters (limit of BookUpdateC2SPacket.write())
   - Paper: 100 pages each with 320 3 byte characters (respects limits of PaperMC servers and its forks)
   - Clear: removes all contents of a book
   - AutoSign: automatically sign book when using presets (toggleable, default false)
