@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(WrittenBookItem.class)
 public class WrittenBookItemMixin {
     @Inject(at=@At("HEAD"),method="isValid",cancellable = true)
-    private static void allowLongTitles(NbtCompound nbt, CallbackInfoReturnable<Boolean> cir) {
+    private static void booktrolling$allowLongTitlesToBeParsed(NbtCompound nbt, CallbackInfoReturnable<Boolean> cir) {
         if (!WritableBookItem.isValid(nbt)) {
             cir.setReturnValue(false);
         } else if (!nbt.contains("title", 8)) {

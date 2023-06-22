@@ -7,6 +7,6 @@ public class Booktrolling implements ModInitializer {
 
     @Override
     public void onInitialize() {
-
+        //perhaps something will be here later?
     }
 }

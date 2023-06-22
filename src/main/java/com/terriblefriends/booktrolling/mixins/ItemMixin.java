@@ -30,7 +30,7 @@ public class ItemMixin {
     private static ItemSizeThread currentThread = null;
 
     @Inject(at=@At("HEAD"),method = "Lnet/minecraft/item/Item;appendTooltip(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Ljava/util/List;Lnet/minecraft/client/item/TooltipContext;)V")
-    private void getItemSize(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context, CallbackInfo ci) {
+    private void booktrolling$handleItemSizeDebug(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context, CallbackInfo ci) {
         if (!Booktrolling.itemSizeDebug || stack.isEmpty()) {
             return;
         }
@@ -73,7 +73,13 @@ public class ItemMixin {
             tooltip.add(Text.literal("ERROR CALCULATING SIZE! See logs").formatted(Formatting.DARK_RED));
         }
         else {
-            tooltip.add(Text.literal("DISK: " + results.diskSize).formatted(Formatting.RED));
+            if (results.byteSize > 8388608) {
+                tooltip.add(Text.literal("BYTES: " + results.byteSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));
+            }
+            else {
+                tooltip.add(Text.literal("BYTES: " + results.byteSize).formatted(Formatting.RED));
+            }
+
             if (results.nbtSize > 2097152) {
                 tooltip.add(Text.literal("NBT: " + results.nbtSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));
             }
@@ -82,7 +88,7 @@ public class ItemMixin {
             }
 
             if (results.moreThanIntLimit) {
-                tooltip.add(Text.literal("REALLY OVERSIZED, AKA > 2.147 Gigabytes COMPRESSED. Are you sure this is a good idea?").formatted(Formatting.DARK_RED));
+                tooltip.add(Text.literal("UNCOMPRESSIBLE, AKA > 2.147 Gigabytes raw. Are you sure this is a good idea?").formatted(Formatting.DARK_RED));
             }
             else if (results.uncompressible) {
                 tooltip.add(Text.literal("COMPRESS: "+results.compressedSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));

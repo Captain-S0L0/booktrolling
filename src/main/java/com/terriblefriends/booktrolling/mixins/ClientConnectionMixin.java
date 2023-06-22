@@ -1,5 +1,6 @@
 package com.terriblefriends.booktrolling.mixins;
 
+import com.mojang.logging.LogUtils;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.TimeoutException;
 import net.minecraft.network.ClientConnection;
@@ -12,10 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientConnection.class)
 public class ClientConnectionMixin {
     @Inject(at=@At("HEAD"),method="exceptionCaught",cancellable = true)
-    private void packetTooLargeTest(ChannelHandlerContext context, Throwable ex, CallbackInfo ci) {
+    private void booktrolling$catchBasicallyEveryClientException(ChannelHandlerContext context, Throwable ex, CallbackInfo ci) {
         if (!(ex instanceof PacketEncoderException) && !(ex instanceof TimeoutException)) {
-            System.out.println("exception triggered");
-            ex.printStackTrace();
+            LogUtils.getLogger().error("Connection exception thrown!", ex);
             ci.cancel();
         }
     }

@@ -42,30 +42,28 @@ public abstract class BookEditScreenMixin extends Screen {
     @Final @Shadow @Mutable private SelectionManager bookTitleSelectionManager = new SelectionManager(() -> this.title, title -> this.title = title, this::getClipboard, this::setClipboard, (string) -> {
         return MinecraftClient.getInstance().isInSingleplayer() ? string.length() <= 65535 : string.length() <= 128;
     });
-    private boolean overloading = false;
+    private boolean injecting = false;
     private boolean use3ByteChars = false;
     private boolean use4ByteChars = false;
     private boolean clear = false;
+    private int pages = 0;
     private int overloadAmount = 0;
     private static boolean sign = false;
     private static boolean randomizeChars = true;
-
-
 
     protected BookEditScreenMixin(Text title) {
         super(title);
     }
 
 
-
     @Inject(at=@At("HEAD"),method="finalizeBook", cancellable = true)
-    private void finalizeBookMixin(boolean signBook, CallbackInfo ci) {
-        if (overloading) {
+    private void booktrolling$injectBookPayload(boolean signBook, CallbackInfo ci) {
+        if (injecting) {
             Random rand = new Random();
             List<String> pages = new ArrayList<>();
             StringBuilder stringBuilder;
             if (!clear) {
-                for (int page = 0; page < 100; page++) {
+                for (int page = 0; page < this.pages; page++) {
                     stringBuilder = new StringBuilder();
 
                     if (randomizeChars) {
@@ -109,10 +107,11 @@ public abstract class BookEditScreenMixin extends Screen {
     }
 
     @Inject(at=@At("HEAD"),method="Lnet/minecraft/client/gui/screen/ingame/BookEditScreen;init()V")
-    private void addNewButtons(CallbackInfo ci) {
+    private void booktrolling$addGuiButtons(CallbackInfo ci) {
         int y = 0;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
-            this.overloading = true;
+            this.injecting = true;
+            this.pages = 100;
             this.use3ByteChars = true;
             this.overloadAmount = 1023;
             this.finalizeBook(false);
@@ -120,7 +119,8 @@ public abstract class BookEditScreenMixin extends Screen {
         }).dimensions(0, y, 98, 20).build());
         y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("singleplayer"), (button) -> {
-            this.overloading = true;
+            this.injecting = true;
+            this.pages = 100;
             this.use3ByteChars = true;
             this.overloadAmount = 21837;//21837 if signing, 21845 if not
             this.finalizeBook(false);
@@ -128,7 +128,8 @@ public abstract class BookEditScreenMixin extends Screen {
         }).dimensions(0, y, 98, 20).build());
         y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("multiplayer"), (button) -> {
-            this.overloading = true;
+            this.injecting = true;
+            this.pages = 100;
             this.use3ByteChars = true;
             this.overloadAmount = 8192;
             this.finalizeBook(false);
@@ -136,7 +137,8 @@ public abstract class BookEditScreenMixin extends Screen {
         }).dimensions(0, y, 98, 20).build());
         y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("paper"), (button) -> {
-            this.overloading = true;
+            this.injecting = true;
+            this.pages = 100;
             this.use3ByteChars = true;
             this.overloadAmount = 320;
             this.finalizeBook(false);
@@ -144,7 +146,7 @@ public abstract class BookEditScreenMixin extends Screen {
         }).dimensions(0, y, 98, 20).build());
         y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("clear"), (button) -> {
-            this.overloading = true;
+            this.injecting = true;
             this.clear = true;
             this.finalizeBook(false);
             this.client.setScreen(null);
@@ -160,7 +162,7 @@ public abstract class BookEditScreenMixin extends Screen {
     }
 
     @Inject(at=@At("HEAD"),method="keyPressedSignMode",cancellable = true)
-    private void allowCopyPasteTitle(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+    private void booktrolling$allowCopyPasteTitle(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         boolean returnvalue;
         if (Screen.isSelectAll(keyCode)) {
             this.bookTitleSelectionManager.selectAll();

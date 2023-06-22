@@ -19,7 +19,7 @@ public class PacketByteBufMixin {
     PacketByteBuf PBB_instance = (PacketByteBuf) (Object) this;
 
     @Inject(at=@At("HEAD"),method="readItemStack",cancellable = true)
-    private void noNbtLimits(CallbackInfoReturnable<ItemStack> cir) {
+    private void booktrolling$removeNBTLimitsOnItemStackRead(CallbackInfoReturnable<ItemStack> cir) {
         if (!PBB_instance.readBoolean()) {
             cir.setReturnValue(ItemStack.EMPTY);
         } else {
