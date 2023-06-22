@@ -19,7 +19,7 @@ public class BundleItemMixin extends Item {
     }
 
     @Inject(at=@At("HEAD"),method="getTooltipData",cancellable = true)
-    private void noTooltip(ItemStack stack, CallbackInfoReturnable<Optional<TooltipData>> cir) {
+    private void booktrolling$preventHugeBundleTooltipLag(ItemStack stack, CallbackInfoReturnable<Optional<TooltipData>> cir) {
         if (stack.hasNbt() && stack.getNbt().getList("Items", 10).size() > 1000) {
             cir.setReturnValue(Optional.empty());
             cir.cancel();

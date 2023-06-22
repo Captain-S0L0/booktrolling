@@ -23,7 +23,7 @@ public abstract class ItemEntityMixin extends Entity {
     }
 
     @Inject(at=@At("HEAD"),method = "initDataTracker",cancellable = true)
-    private void initDataTrackerOverride(CallbackInfo ci) {
+    private void bookTrolling$preventLargeInvisibleItems(CallbackInfo ci) {
         this.getDataTracker().startTracking(STACK, new ItemStack(Items.BARRIER));
         ci.cancel();
     }

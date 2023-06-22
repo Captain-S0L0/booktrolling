@@ -18,11 +18,11 @@ public class ItemSizeThread extends Thread {
         this.stack = stack;
     }
 
-    private ItemStack stack;
+    private final ItemStack stack;
     private final Deflater deflater = new Deflater();
     private final byte[] deflateBuffer = new byte[8192];
 
-    private Results results = new Results();
+    private final Results results = new Results();
     public Results getResults() {
         return results;
     }
@@ -32,7 +32,7 @@ public class ItemSizeThread extends Thread {
         try {
             PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeItemStack(this.stack);
-            this.results.diskSize = buf.readableBytes();
+            this.results.byteSize = buf.readableBytes();
 
             buf.readBoolean();
             ItemStack itemStack = new ItemStack(buf.readRegistryValue(Registries.ITEM), buf.readByte());
@@ -56,12 +56,12 @@ public class ItemSizeThread extends Thread {
             this.results.nbtSize = byteTracker.get();
 
             PacketByteBuf compressionBuf = new PacketByteBuf(Unpooled.buffer());
-            if (this.results.diskSize > 0 && this.results.diskSize <= 2147483645) {
+            if (this.results.byteSize > 0 && this.results.byteSize <= 2147483645) {
                 buf.resetReaderIndex();
 
                 byte[] bs = buf.getWrittenBytes();
                 compressionBuf.writeVarInt(bs.length);
-                deflater.setInput(bs, 0, (int) this.results.diskSize);
+                deflater.setInput(bs, 0, (int) this.results.byteSize);
                 deflater.finish();
 
                 while (!this.deflater.finished()) {
@@ -71,11 +71,7 @@ public class ItemSizeThread extends Thread {
 
                 this.deflater.reset();
 
-                if (PacketByteBuf.getVarIntLength(compressionBuf.readableBytes()) > 3) {
-                    this.results.uncompressible = true;
-                } else {
-                    this.results.uncompressible = false;
-                }
+                this.results.uncompressible = PacketByteBuf.getVarIntLength(compressionBuf.readableBytes()) > 3;
                 this.results.compressedSize = compressionBuf.readableBytes();
             } else {
                 this.results.moreThanIntLimit = true;
@@ -95,7 +91,7 @@ public class ItemSizeThread extends Thread {
     }
 
     public class Results {
-        public long diskSize = -1;
+        public long byteSize = -1;
         public long nbtSize = -1;
         public long compressedSize = -1;
         public boolean uncompressible = false;

@@ -20,7 +20,7 @@ public class PotionItemMixin extends Item {
     }
 
     @Inject(at=@At("HEAD"),method="appendTooltip")
-    public void appendTooltip(ItemStack stack, World world, List<Text> tooltip, TooltipContext context, CallbackInfo ci) {
+    public void booktrolling$appendSizeTooltip(ItemStack stack, World world, List<Text> tooltip, TooltipContext context, CallbackInfo ci) {
         super.appendTooltip(stack, world, tooltip, context);
     }
 }
