@@ -26,7 +26,7 @@ import java.util.Random;
 
 @Mixin(BookEditScreen.class)
 public abstract class BookEditScreenMixin extends Screen {
-    @Shadow private Hand hand;
+    @Shadow @Final private Hand hand;
     @Shadow @Final private PlayerEntity player;
     @Shadow protected abstract void finalizeBook(boolean bool);
     @Shadow protected abstract String getCurrentPageContent();
@@ -96,7 +96,7 @@ public abstract class BookEditScreenMixin extends Screen {
             Optional title = Optional.empty();
 
             if (sign) {
-                title = Optional.of("Book");
+                title = Optional.of("BookTrolling™ by Captain_S0L0");
             }
 
             int i = this.hand == Hand.MAIN_HAND ? this.player.getInventory().selectedSlot : 40;
