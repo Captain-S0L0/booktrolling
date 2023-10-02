@@ -3,6 +3,7 @@ package com.terriblefriends.booktrolling.mixins;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.handler.codec.EncoderException;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.network.PacketByteBuf;
@@ -31,7 +32,7 @@ public class PacketByteBufMixin {
                 PBB_instance.readerIndex(readerIndex);
                 try {
                     BBIS = new ByteBufInputStream(PBB_instance);
-                    itemStack.setNbt(NbtIo.read(BBIS, NbtTagSizeTracker.EMPTY));
+                    itemStack.setNbt((NbtCompound) NbtIo.read(BBIS, NbtTagSizeTracker.of(Long.MAX_VALUE)));
 
                 } catch (IOException var5) {
                     throw new EncoderException(var5);
