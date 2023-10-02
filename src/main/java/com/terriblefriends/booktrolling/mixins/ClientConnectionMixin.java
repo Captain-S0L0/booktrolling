@@ -4,7 +4,7 @@ import com.mojang.logging.LogUtils;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.handler.timeout.TimeoutException;
 import net.minecraft.network.ClientConnection;
-import net.minecraft.network.PacketEncoderException;
+import net.minecraft.network.handler.PacketEncoderException;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
