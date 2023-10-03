@@ -1,6 +1,6 @@
 package com.terriblefriends.booktrolling.mixins;
 
-import net.minecraft.network.PacketInflater;
+import net.minecraft.network.handler.PacketInflater;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.Constant;
 import org.spongepowered.asm.mixin.injection.ModifyConstant;

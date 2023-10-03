@@ -4,9 +4,11 @@ import com.mojang.logging.LogUtils;
 import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import net.minecraft.item.ItemStack;
+import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
 import net.minecraft.nbt.NbtTagSizeTracker;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.encoding.VarInts;
 import net.minecraft.registry.Registries;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -45,12 +47,12 @@ public class ItemSizeThread extends Thread {
                 buf.readerIndex(i);
                 ByteBufInputStream BBIS = new ByteBufInputStream(buf);
 
-                NbtTagSizeTracker tracker = new NbtTagSizeTracker(0L) {
+                NbtTagSizeTracker tracker = new NbtTagSizeTracker(Long.MAX_VALUE,Integer.MAX_VALUE) {
                     public void add(long bytes) {
                         byteTracker.set(byteTracker.get() + bytes);
                     }
                 };
-                itemStack.setNbt(NbtIo.read(BBIS, tracker));
+                itemStack.setNbt((NbtCompound) NbtIo.read(BBIS, tracker));
             }
 
             this.results.nbtSize = byteTracker.get();
@@ -59,7 +61,7 @@ public class ItemSizeThread extends Thread {
             if (this.results.byteSize > 0 && this.results.byteSize <= 2147483645) {
                 buf.resetReaderIndex();
 
-                byte[] bs = buf.getWrittenBytes();
+                byte[] bs = buf.array();
                 compressionBuf.writeVarInt(bs.length);
                 deflater.setInput(bs, 0, (int) this.results.byteSize);
                 deflater.finish();
@@ -71,7 +73,7 @@ public class ItemSizeThread extends Thread {
 
                 this.deflater.reset();
 
-                this.results.uncompressible = PacketByteBuf.getVarIntLength(compressionBuf.readableBytes()) > 3;
+                this.results.uncompressible = VarInts.getSizeInBytes(compressionBuf.readableBytes()) > 3;
                 this.results.compressedSize = compressionBuf.readableBytes();
             } else {
                 this.results.moreThanIntLimit = true;
