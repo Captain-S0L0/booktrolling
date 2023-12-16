@@ -2,6 +2,8 @@
 
 A collection of tools for ~~exploiting~~ working with written books in Minecraft.
 
+This is a FABRIC mod.
+
 
 **Changes provided:**
   - Allows up to 8,192 characters / page in multiplayer (limit of BookUpdateC2SPacket.write()), or 32,767 in singleplayer (limit of WritableBookItem.isValid())
