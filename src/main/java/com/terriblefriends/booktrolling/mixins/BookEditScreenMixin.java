@@ -95,11 +95,22 @@ public abstract class BookEditScreenMixin extends Screen {
             });
         }).dimensions(0, y, 98, 20).build());
         y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("max"), (button) -> {
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("max unsigned"), (button) -> {
             this.sign(100, autoSign, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
                 for (int i = 0; i < 1024; i++) {
+                    builder.append(charProvider.call());
+                }
+                return builder.toString();
+            });
+        }).dimensions(0, y, 98, 20).build());
+        y+=20;
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("max signed"), (button) -> {
+            this.sign(100, true, () -> {
+                StringBuilder builder = new StringBuilder();
+                Callable<Character> charProvider = getCharProvider();
+                for (int i = 0; i < 8192; i++) {
                     builder.append(charProvider.call());
                 }
                 return builder.toString();
