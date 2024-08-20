@@ -22,7 +22,6 @@
     "tooltips.FireworkRocketItemMixin",
     "tooltips.FireworkStarItemMixin",
     "tooltips.LingeringPotionItemMixin",
-    "tooltips.MusicDiscItemMixin",
     "tooltips.PotionItemMixin",
     "tooltips.ShieldItemMixin",
     "tooltips.TippedArrowItemMixin",
