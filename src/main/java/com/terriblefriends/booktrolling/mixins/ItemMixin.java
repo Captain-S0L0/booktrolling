@@ -3,15 +3,13 @@ package com.terriblefriends.booktrolling.mixins;
 import com.mojang.logging.LogUtils;
 import com.terriblefriends.booktrolling.Booktrolling;
 import com.terriblefriends.booktrolling.ItemSizeThread;
-import net.minecraft.client.item.TooltipContext;
+import net.minecraft.client.item.TooltipType;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.encoding.VarInts;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import net.minecraft.world.World;
-import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -49,8 +47,8 @@ public class ItemMixin {
     @Unique
     private static final Text OVERSIZED_TEXT = Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED);
 
-    @Inject(at=@At("HEAD"),method = "Lnet/minecraft/item/Item;appendTooltip(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Ljava/util/List;Lnet/minecraft/client/item/TooltipContext;)V")
-    private void booktrolling$handleItemSizeDebug(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context, CallbackInfo ci) {
+    @Inject(at=@At("HEAD"),method = "Lnet/minecraft/item/Item;appendTooltip(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/Item$TooltipContext;Ljava/util/List;Lnet/minecraft/client/item/TooltipType;)V")
+    private void booktrolling$handleItemSizeDebug(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type, CallbackInfo ci) {
         if (!Booktrolling.itemSizeDebug || stack.isEmpty()) {
             return;
         }
@@ -99,16 +97,6 @@ public class ItemMixin {
         if (results.packetSize > PACKET_RAW_LIMIT)
             line.append(OVERSIZED_TEXT);
         else if (results.packetSize > PACKET_RAW_LIMIT - WARNING_THRESHOLD) {
-            line.append(WARNING_TEXT);
-        }
-        tooltip.add(line);
-
-        // limit imposed by NbtSizeTracker in PacketByteBuf.readNbt()
-
-        line = Text.literal(String.format("NBT: %s", toReadableNumber(results.nbtSize))).formatted(Formatting.RED);
-        if (results.nbtSize > NBT_SIZE_TRACKER_LIMIT)
-            line.append(OVERSIZED_TEXT);
-        else if (results.nbtSize > NBT_SIZE_TRACKER_LIMIT - WARNING_THRESHOLD) {
             line.append(WARNING_TEXT);
         }
         tooltip.add(line);

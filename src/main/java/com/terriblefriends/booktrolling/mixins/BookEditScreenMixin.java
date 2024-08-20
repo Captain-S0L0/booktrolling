@@ -31,10 +31,10 @@ public abstract class BookEditScreenMixin extends Screen {
 
 
     @Final @Shadow @Mutable private SelectionManager currentPageSelectionManager = new SelectionManager(this::getCurrentPageContent, this::setPageContent, this::getClipboard, this::setClipboard, (string) -> {
-        return MinecraftClient.getInstance().isInSingleplayer() ? string.length() <= 32767 : string.length() <= 8192;
+        return string.length() <= 1024;
     });;
     @Final @Shadow @Mutable private SelectionManager bookTitleSelectionManager = new SelectionManager(() -> this.title, title -> this.title = title, this::getClipboard, this::setClipboard, (string) -> {
-        return MinecraftClient.getInstance().isInSingleplayer() ? string.length() <= 65535 : string.length() <= 128;
+        return string.length() <= 32;
     });
     @Unique
     private static boolean autoSign = false;
@@ -95,26 +95,11 @@ public abstract class BookEditScreenMixin extends Screen {
             });
         }).dimensions(0, y, 98, 20).build());
         y+=20;
-
-        if (this.client.isInSingleplayer()) {
-            this.addDrawableChild(ButtonWidget.builder(Text.literal("singleplayer"), (button) -> {
-                this.sign(100, autoSign, () -> {
-                    StringBuilder builder = new StringBuilder();
-                    Callable<Character> charProvider = getCharProvider();
-                    for (int i = 0; i < 21837; i++) {
-                        builder.append(charProvider.call());
-                    }
-                    return builder.toString();
-                });
-            }).dimensions(0, y, 98, 20).build());
-            y += 20;
-        }
-
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("multiplayer"), (button) -> {
+        this.addDrawableChild(ButtonWidget.builder(Text.literal("max"), (button) -> {
             this.sign(100, autoSign, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
-                for (int i = 0; i < 8192; i++) {
+                for (int i = 0; i < 1024; i++) {
                     builder.append(charProvider.call());
                 }
                 return builder.toString();

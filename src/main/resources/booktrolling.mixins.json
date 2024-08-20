@@ -10,9 +10,7 @@
     "ItemEntityMixin",
     "ItemMixin",
     "LecternScreenMixin",
-    "PacketByteBufMixin",
     "PacketInflaterMixin",
-    "WrittenBookItemMixin",
 
     "tooltips.BannerItemMixin",
     "tooltips.BannerPatternItemMixin",
