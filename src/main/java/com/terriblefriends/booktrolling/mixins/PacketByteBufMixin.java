@@ -5,10 +5,11 @@ import io.netty.handler.codec.EncoderException;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
+import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
 import net.minecraft.registry.Registries;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
@@ -17,6 +18,7 @@ import java.io.IOException;
 
 @Mixin(PacketByteBuf.class)
 public class PacketByteBufMixin {
+    @Unique
     PacketByteBuf PBB_instance = (PacketByteBuf) (Object) this;
 
     @Inject(at=@At("HEAD"),method="readItemStack",cancellable = true)
@@ -32,7 +34,7 @@ public class PacketByteBufMixin {
                 PBB_instance.readerIndex(readerIndex);
                 try {
                     BBIS = new ByteBufInputStream(PBB_instance);
-                    itemStack.setNbt((NbtCompound) NbtIo.read(BBIS, NbtTagSizeTracker.of(Long.MAX_VALUE)));
+                    itemStack.setNbt((NbtCompound) NbtIo.read(BBIS, NbtSizeTracker.of(Long.MAX_VALUE)));
 
                 } catch (IOException var5) {
                     throw new EncoderException(var5);

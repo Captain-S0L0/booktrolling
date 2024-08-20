@@ -6,11 +6,14 @@ import com.terriblefriends.booktrolling.ItemSizeThread;
 import net.minecraft.client.item.TooltipContext;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.network.encoding.VarInts;
+import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.Nullable;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -23,11 +26,28 @@ import java.util.concurrent.Future;
 
 @Mixin(Item.class)
 public class ItemMixin {
+    @Unique
     private static final ExecutorService threadPool = Executors.newFixedThreadPool(1);
-    private static ItemStack oldStack = null;
+    @Unique
+    private static ItemStack lastStack = null;
+    @Unique
     private static ItemSizeThread.Results oldResults = null;
-    private static Future currentTask = null;
+    @Unique
+    private static Future<?> currentTask = null;
+    @Unique
     private static ItemSizeThread currentThread = null;
+
+    @Unique
+    private static final int WARNING_THRESHOLD = 8192;
+    @Unique
+    private static final int PACKET_RAW_LIMIT = 8388608;
+    @Unique
+    private static final int NBT_SIZE_TRACKER_LIMIT = 2097152;
+
+    @Unique
+    private static final Text WARNING_TEXT = Text.literal(" (WARNING)").formatted(Formatting.GOLD);
+    @Unique
+    private static final Text OVERSIZED_TEXT = Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED);
 
     @Inject(at=@At("HEAD"),method = "Lnet/minecraft/item/Item;appendTooltip(Lnet/minecraft/item/ItemStack;Lnet/minecraft/world/World;Ljava/util/List;Lnet/minecraft/client/item/TooltipContext;)V")
     private void booktrolling$handleItemSizeDebug(ItemStack stack, @Nullable World world, List<Text> tooltip, TooltipContext context, CallbackInfo ci) {
@@ -35,14 +55,13 @@ public class ItemMixin {
             return;
         }
 
-        if (oldResults != null && ItemStack.areEqual(oldStack, stack)) {
+        if (oldResults != null && ItemStack.areEqual(lastStack, stack)) {
             appendData(tooltip, oldResults);
             return;
         }
         if (currentTask != null) {
             if (!currentTask.isDone()) {
                 tooltip.add(Text.literal("Calculating...").formatted(Formatting.RED));
-                return;
             }
             else {
                 oldResults = currentThread.getResults();
@@ -56,46 +75,77 @@ public class ItemMixin {
                 appendData(tooltip, oldResults);
                 currentTask = null;
                 currentThread = null;
-                return;
             }
         }
         else {
-            oldStack = stack;
+            lastStack = stack;
             oldResults = null;
             currentThread = new ItemSizeThread(stack);
             currentTask = threadPool.submit(currentThread);
-            return;
         }
     }
 
+    @Unique
     private static void appendData(List<Text> tooltip, ItemSizeThread.Results results) {
         if (results.error) {
-            tooltip.add(Text.literal("ERROR CALCULATING SIZE! See logs").formatted(Formatting.DARK_RED));
+            tooltip.add(Text.literal("ERROR CALCULATING SIZE! See logs!").formatted(Formatting.DARK_RED));
+            return;
+        }
+
+        // limit imposed by PacketEncoder.encode()
+
+        MutableText line;
+        line = Text.literal(String.format("RAW: %s", toReadableNumber(results.packetSize))).formatted(Formatting.RED);
+        if (results.packetSize > PACKET_RAW_LIMIT)
+            line.append(OVERSIZED_TEXT);
+        else if (results.packetSize > PACKET_RAW_LIMIT - WARNING_THRESHOLD) {
+            line.append(WARNING_TEXT);
+        }
+        tooltip.add(line);
+
+        // limit imposed by NbtSizeTracker in PacketByteBuf.readNbt()
+
+        line = Text.literal(String.format("NBT: %s", toReadableNumber(results.nbtSize))).formatted(Formatting.RED);
+        if (results.nbtSize > NBT_SIZE_TRACKER_LIMIT)
+            line.append(OVERSIZED_TEXT);
+        else if (results.nbtSize > NBT_SIZE_TRACKER_LIMIT - WARNING_THRESHOLD) {
+            line.append(WARNING_TEXT);
+        }
+        tooltip.add(line);
+
+        // limit imposed by SizePrepender.encode() in ClientConnection
+
+        if (results.compressedSize < 0) {
+            tooltip.add(Text.literal("UNCOMPRESSIBLE, AKA > 2.147 Gigabytes raw. Are you sure this is a good idea?").formatted(Formatting.DARK_RED));
         }
         else {
-            if (results.byteSize > 8388608) {
-                tooltip.add(Text.literal("BYTES: " + results.byteSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));
-            }
-            else {
-                tooltip.add(Text.literal("BYTES: " + results.byteSize).formatted(Formatting.RED));
-            }
+            line = Text.literal(String.format("COMPRESSED: %s", toReadableNumber(results.compressedSize))).formatted(Formatting.RED);
 
-            if (results.nbtSize > 2097152) {
-                tooltip.add(Text.literal("NBT: " + results.nbtSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));
+            if (results.compressedSize > Integer.MAX_VALUE || VarInts.getSizeInBytes((int)results.compressedSize) > 3) {
+                line.append(OVERSIZED_TEXT);
             }
-            else {
-                tooltip.add(Text.literal("NBT: " + results.nbtSize).formatted(Formatting.RED));
-            }
-
-            if (results.moreThanIntLimit) {
-                tooltip.add(Text.literal("UNCOMPRESSIBLE, AKA > 2.147 Gigabytes raw. Are you sure this is a good idea?").formatted(Formatting.DARK_RED));
-            }
-            else if (results.uncompressible) {
-                tooltip.add(Text.literal("COMPRESS: "+results.compressedSize).formatted(Formatting.RED).append(Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED)));
-            }
-            else {
-                tooltip.add(Text.literal("COMPRESS: "+results.compressedSize).formatted(Formatting.RED));
+            else if (VarInts.getSizeInBytes((int)results.compressedSize + WARNING_THRESHOLD) > 3) {
+                line.append(WARNING_TEXT);
             }
         }
+        tooltip.add(line);
+    }
+
+    @Unique
+    private static String toReadableNumber(long value) {
+        if (Booktrolling.rawSizes) {
+            return value + " bytes";
+        }
+
+        if (value >= 1073741824) {
+            return String.format("%.2f GB", value / 1073741824D);
+        }
+        if (value >= 1048576) {
+            return String.format("%.2f MB", value / 1048576D);
+        }
+        if (value >= 1024) {
+            return String.format("%.2f KB", value / 1024D);
+        }
+        return value + " bytes";
     }
 }

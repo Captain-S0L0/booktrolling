@@ -3,12 +3,13 @@
   "minVersion": "0.8",
   "package": "com.terriblefriends.booktrolling.mixins",
   "compatibilityLevel": "JAVA_17",
-  "mixins": [
+  "client": [
     "BookEditScreenMixin",
     "ClientConnectionMixin",
     "GameMenuScreenMixin",
     "ItemEntityMixin",
     "ItemMixin",
+    "LecternScreenMixin",
     "PacketByteBufMixin",
     "PacketInflaterMixin",
     "WrittenBookItemMixin",

@@ -21,5 +21,8 @@ public class GameMenuScreenMixin extends Screen {
         this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("Item Size Debug"), () -> {
             Booktrolling.itemSizeDebug = !Booktrolling.itemSizeDebug;
         }, Booktrolling.itemSizeDebug));
+        this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("Raw Sizes"), () -> {
+            Booktrolling.rawSizes = !Booktrolling.rawSizes;
+        }, Booktrolling.rawSizes));
     }
 }

@@ -1,14 +1,10 @@
 package com.terriblefriends.booktrolling;
 
 import com.mojang.logging.LogUtils;
-import io.netty.buffer.ByteBufInputStream;
 import io.netty.buffer.Unpooled;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtIo;
-import net.minecraft.nbt.NbtTagSizeTracker;
+import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.encoding.VarInts;
 import net.minecraft.registry.Registries;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -32,38 +28,41 @@ public class ItemSizeThread extends Thread {
     @Override
     public void run() {
         try {
+            // write item to packet byte buf for raw packet size
             PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
             buf.writeItemStack(this.stack);
-            this.results.byteSize = buf.readableBytes();
+            this.results.packetSize = buf.readableBytes();
 
+            // read item from packet byte buf for nbt size tracker
+
+            // is stack empty (ignore)
             buf.readBoolean();
-            ItemStack itemStack = new ItemStack(buf.readRegistryValue(Registries.ITEM), buf.readByte());
+            // read item
+            buf.readRegistryValue(Registries.ITEM);
+            // read count
+            buf.readByte();
 
-            AtomicLong byteTracker = new AtomicLong(0);
+            AtomicLong nbtSize = new AtomicLong(0);
 
-            int i = buf.readerIndex();
-            byte b = buf.readByte();
-            if (b != 0) {
-                buf.readerIndex(i);
-                ByteBufInputStream BBIS = new ByteBufInputStream(buf);
+            NbtSizeTracker tracker = new NbtSizeTracker(Long.MAX_VALUE,Integer.MAX_VALUE) {
+                public void add(long bytes) {
+                    nbtSize.addAndGet(bytes);
+                }
+            };
 
-                NbtTagSizeTracker tracker = new NbtTagSizeTracker(Long.MAX_VALUE,Integer.MAX_VALUE) {
-                    public void add(long bytes) {
-                        byteTracker.set(byteTracker.get() + bytes);
-                    }
-                };
-                itemStack.setNbt((NbtCompound) NbtIo.read(BBIS, tracker));
-            }
+            buf.readNbt(tracker);
 
-            this.results.nbtSize = byteTracker.get();
+            this.results.nbtSize = nbtSize.get();
+
+            // compress and read the size
 
             PacketByteBuf compressionBuf = new PacketByteBuf(Unpooled.buffer());
-            if (this.results.byteSize > 0 && this.results.byteSize <= 2147483645) {
+            if (this.results.packetSize > 0 && this.results.packetSize <= 2147483645) {
                 buf.resetReaderIndex();
 
                 byte[] bs = buf.array();
                 compressionBuf.writeVarInt(bs.length);
-                deflater.setInput(bs, 0, (int) this.results.byteSize);
+                deflater.setInput(bs, 0, (int) this.results.packetSize);
                 deflater.finish();
 
                 while (!this.deflater.finished()) {
@@ -73,31 +72,18 @@ public class ItemSizeThread extends Thread {
 
                 this.deflater.reset();
 
-                this.results.uncompressible = VarInts.getSizeInBytes(compressionBuf.readableBytes()) > 3;
                 this.results.compressedSize = compressionBuf.readableBytes();
-            } else {
-                this.results.moreThanIntLimit = true;
             }
-
-                    /*if (byteCount >= 1024 && byteCount < 1048576)
-                        tempSize = String.format("%.2f kb", byteCount / (float) 1024);
-                    else if (byteCount >= 1048576 && byteCount < 1073741824)
-                        tempSize = String.format("%.2f Mb", byteCount / (float) 1048576);
-                    else if (byteCount >= 1073741824) tempSize = String.format("%.2f Gb", byteCount / (float) 1073741824);
-                    else tempSize = String.format("%d bytes", byteCount);*/
-
         } catch (Exception e) {
             this.results.error = true;
             LogUtils.getLogger().error("Error calculating stack size!", e);
         }
     }
 
-    public class Results {
-        public long byteSize = -1;
+    public static class Results {
+        public long packetSize = -1;
         public long nbtSize = -1;
         public long compressedSize = -1;
-        public boolean uncompressible = false;
-        public boolean moreThanIntLimit = false;
         public boolean error = false;
     }
 
