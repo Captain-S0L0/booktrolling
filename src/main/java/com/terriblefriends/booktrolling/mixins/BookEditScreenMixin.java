@@ -6,28 +6,22 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.BookEditScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.util.SelectionManager;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.network.packet.c2s.play.BookUpdateC2SPacket;
 import net.minecraft.text.Text;
-import net.minecraft.util.Hand;
-import org.spongepowered.asm.mixin.Final;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Mutable;
-import org.spongepowered.asm.mixin.Shadow;
+import net.minecraft.util.Formatting;
+import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Optional;
 import java.util.Random;
+import java.util.concurrent.Callable;
 
 @Mixin(BookEditScreen.class)
 public abstract class BookEditScreenMixin extends Screen {
-    @Shadow @Final private Hand hand;
-    @Shadow @Final private PlayerEntity player;
+    @Shadow private boolean dirty;
+    @Shadow @Final private List<String> pages;
     @Shadow protected abstract void finalizeBook(boolean bool);
     @Shadow protected abstract String getCurrentPageContent();
     @Shadow protected abstract void setPageContent(String newContent);
@@ -42,67 +36,48 @@ public abstract class BookEditScreenMixin extends Screen {
     @Final @Shadow @Mutable private SelectionManager bookTitleSelectionManager = new SelectionManager(() -> this.title, title -> this.title = title, this::getClipboard, this::setClipboard, (string) -> {
         return MinecraftClient.getInstance().isInSingleplayer() ? string.length() <= 65535 : string.length() <= 128;
     });
-    private boolean injecting = false;
-    private boolean use3ByteChars = false;
-    private boolean use4ByteChars = false;
-    private boolean clear = false;
-    private int pages = 0;
-    private int overloadAmount = 0;
-    private static boolean sign = false;
+    @Unique
+    private static boolean autoSign = false;
+    @Unique
     private static boolean randomizeChars = true;
+
+    @Unique
+    private static final Random RANDOM = new Random();
+
+    @Unique
+    private static final Callable<Character> RANDOM_CHAR_PROVIDER = () -> (char)RANDOM.nextInt(2048, 65536);
+    @Unique
+    private static final Callable<Character> STATIC_CHAR_PROVIDER = () -> (char)2048;
+    @Unique
+    private static final String BRANDING = "BookTrolling™ by Captain_S0L0";
+
 
     protected BookEditScreenMixin(Text title) {
         super(title);
     }
 
+    @Unique
+    private void sign(int pageCount, boolean signing, Callable<String> pageGenerator) {
+        try {
+            this.pages.clear();
 
-    @Inject(at=@At("HEAD"),method="finalizeBook", cancellable = true)
-    private void booktrolling$injectBookPayload(boolean signBook, CallbackInfo ci) {
-        if (injecting) {
-            Random rand = new Random();
-            List<String> pages = new ArrayList<>();
-            StringBuilder stringBuilder;
-            if (!clear) {
-                for (int page = 0; page < this.pages; page++) {
-                    stringBuilder = new StringBuilder();
-
-                    if (randomizeChars) {
-                        if (use4ByteChars) {
-                            for (int characters = 0; characters < overloadAmount; characters++) {
-                                stringBuilder.append(Character.toChars(rand.nextInt(65536, 1114111)));
-                            }
-                        }
-                        if (use3ByteChars) {
-                            for (int characters = 0; characters < overloadAmount; characters++) {
-                                stringBuilder.append(Character.toChars(rand.nextInt(2048, 65536)));
-                            }
-                        }
-                    }
-                    else {
-                        if (use4ByteChars) {
-                            stringBuilder.append(String.valueOf((char) 65536).repeat(Math.max(0, overloadAmount)));
-                        }
-                        if (use3ByteChars) {
-                            stringBuilder.append(String.valueOf((char) 2048).repeat(Math.max(0, overloadAmount)));
-                        }
-                    }
-
-                    String currentPage = stringBuilder.toString();
-                    //System.out.println(currentPage.length());
-                    pages.add(currentPage);
-                }
+            for (int i = 0; i < pageCount; i++) {
+                this.pages.add(pageGenerator.call());
             }
 
-            Optional title = Optional.empty();
+            this.dirty = true;
 
-            if (sign) {
-                title = Optional.of("BookTrolling™ by Captain_S0L0");
+            if (signing) {
+                this.title = BRANDING;
             }
 
-            int i = this.hand == Hand.MAIN_HAND ? this.player.getInventory().selectedSlot : 40;
-            client.getNetworkHandler().sendPacket(new BookUpdateC2SPacket(i, pages, title));
+            this.finalizeBook(signing);
 
-            ci.cancel();
+            this.client.setScreen(null);
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            this.client.inGameHud.getChatHud().addMessage(Text.literal("<BookTrolling> Error generating book! See logs!").formatted(Formatting.DARK_RED));
         }
     }
 
@@ -110,52 +85,64 @@ public abstract class BookEditScreenMixin extends Screen {
     private void booktrolling$addGuiButtons(CallbackInfo ci) {
         int y = 0;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
-            this.injecting = true;
-            this.pages = 100;
-            this.use3ByteChars = true;
-            this.overloadAmount = 1023;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
+            this.sign(100, autoSign, () -> {
+                StringBuilder builder = new StringBuilder();
+                Callable<Character> charProvider = getCharProvider();
+                for (int i = 0; i < 1023; i++) {
+                    builder.append(charProvider.call());
+                }
+                return builder.toString();
+            });
         }).dimensions(0, y, 98, 20).build());
         y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("singleplayer"), (button) -> {
-            this.injecting = true;
-            this.pages = 100;
-            this.use3ByteChars = true;
-            this.overloadAmount = 21837;//21837 if signing, 21845 if not
-            this.finalizeBook(false);
-            this.client.setScreen(null);
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;
+
+        if (this.client.isInSingleplayer()) {
+            this.addDrawableChild(ButtonWidget.builder(Text.literal("singleplayer"), (button) -> {
+                this.sign(100, autoSign, () -> {
+                    StringBuilder builder = new StringBuilder();
+                    Callable<Character> charProvider = getCharProvider();
+                    for (int i = 0; i < 21837; i++) {
+                        builder.append(charProvider.call());
+                    }
+                    return builder.toString();
+                });
+            }).dimensions(0, y, 98, 20).build());
+            y += 20;
+        }
+
         this.addDrawableChild(ButtonWidget.builder(Text.literal("multiplayer"), (button) -> {
-            this.injecting = true;
-            this.pages = 100;
-            this.use3ByteChars = true;
-            this.overloadAmount = 8192;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
+            this.sign(100, autoSign, () -> {
+                StringBuilder builder = new StringBuilder();
+                Callable<Character> charProvider = getCharProvider();
+                for (int i = 0; i < 8192; i++) {
+                    builder.append(charProvider.call());
+                }
+                return builder.toString();
+            });
         }).dimensions(0, y, 98, 20).build());
         y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("paper"), (button) -> {
-            this.injecting = true;
-            this.pages = 100;
-            this.use3ByteChars = true;
-            this.overloadAmount = 320;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
+            this.sign(100, autoSign, () -> {
+                StringBuilder builder = new StringBuilder();
+                Callable<Character> charProvider = getCharProvider();
+                for (int i = 0; i < 320; i++) {
+                    builder.append(charProvider.call());
+                }
+                return builder.toString();
+            });
         }).dimensions(0, y, 98, 20).build());
         y+=20;
         this.addDrawableChild(ButtonWidget.builder(Text.literal("clear"), (button) -> {
-            this.injecting = true;
-            this.clear = true;
-            this.finalizeBook(false);
-            this.client.setScreen(null);
+            this.sign(1, false, () -> {
+                return "";
+            });
+
         }).dimensions(0, y, 98, 20).build());
         y+=20;
 
         this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("AutoSign"), () -> {
-            sign = !sign;
-        }, sign));
+            autoSign = !autoSign;
+        }, autoSign));
         this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("RandomizeChars"), () -> {
             randomizeChars = !randomizeChars;
         }, randomizeChars));
@@ -204,5 +191,10 @@ public abstract class BookEditScreenMixin extends Screen {
         }
         cir.setReturnValue(returnvalue);
         cir.cancel();
+    }
+
+    @Unique
+    private static Callable<Character> getCharProvider() {
+        return randomizeChars ? RANDOM_CHAR_PROVIDER : STATIC_CHAR_PROVIDER;
     }
 }
