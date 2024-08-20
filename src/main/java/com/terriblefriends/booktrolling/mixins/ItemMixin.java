@@ -3,7 +3,7 @@ package com.terriblefriends.booktrolling.mixins;
 import com.mojang.logging.LogUtils;
 import com.terriblefriends.booktrolling.Booktrolling;
 import com.terriblefriends.booktrolling.ItemSizeThread;
-import net.minecraft.client.item.TooltipType;
+import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
 import net.minecraft.network.encoding.VarInts;
