@@ -2,9 +2,11 @@ package com.terriblefriends.booktrolling;
 
 import com.mojang.logging.LogUtils;
 import io.netty.buffer.Unpooled;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.item.ItemStack;
 import net.minecraft.nbt.NbtSizeTracker;
 import net.minecraft.network.PacketByteBuf;
+import net.minecraft.network.RegistryByteBuf;
 import net.minecraft.registry.Registries;
 
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,6 +23,8 @@ public class ItemSizeThread extends Thread {
     private final byte[] deflateBuffer = new byte[8192];
 
     private final Results results = new Results();
+    private static final MinecraftClient MINECRAFT = MinecraftClient.getInstance();
+
     public Results getResults() {
         return results;
     }
@@ -28,19 +32,21 @@ public class ItemSizeThread extends Thread {
     @Override
     public void run() {
         try {
+            if (MINECRAFT.world == null) {
+                return;
+            }
+
             // write item to packet byte buf for raw packet size
-            PacketByteBuf buf = new PacketByteBuf(Unpooled.buffer());
-            buf.writeItemStack(this.stack);
+
+            RegistryByteBuf buf = new RegistryByteBuf(Unpooled.buffer(), MINECRAFT.world.getRegistryManager());
+            ItemStack.OPTIONAL_PACKET_CODEC.encode(buf, this.stack);
             this.results.packetSize = buf.readableBytes();
 
             // read item from packet byte buf for nbt size tracker
+            // I don't believe this is really important anymore with the migration to components so I'm not gonna fix it ¯\_(ツ)_/¯
 
-            // is stack empty (ignore)
-            buf.readBoolean();
-            // read item
-            buf.readRegistryValue(Registries.ITEM);
-            // read count
-            buf.readByte();
+            /*
+            ItemStack.OPTIONAL_PACKET_CODEC.decode(buf);
 
             AtomicLong nbtSize = new AtomicLong(0);
 
@@ -53,6 +59,8 @@ public class ItemSizeThread extends Thread {
             buf.readNbt(tracker);
 
             this.results.nbtSize = nbtSize.get();
+
+            */
 
             // compress and read the size
 
@@ -74,17 +82,17 @@ public class ItemSizeThread extends Thread {
 
                 this.results.compressedSize = compressionBuf.readableBytes();
             }
+
+            this.results.error = false;
         } catch (Exception e) {
-            this.results.error = true;
             LogUtils.getLogger().error("Error calculating stack size!", e);
         }
     }
 
     public static class Results {
         public long packetSize = -1;
-        public long nbtSize = -1;
         public long compressedSize = -1;
-        public boolean error = false;
+        public boolean error = true;
     }
 
 }
