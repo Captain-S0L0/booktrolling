@@ -47,7 +47,7 @@ public class ItemMixin {
     @Unique
     private static final Text OVERSIZED_TEXT = Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED);
 
-    @Inject(at=@At("HEAD"),method = "Lnet/minecraft/item/Item;appendTooltip(Lnet/minecraft/item/ItemStack;Lnet/minecraft/item/Item$TooltipContext;Ljava/util/List;Lnet/minecraft/client/item/TooltipType;)V")
+    @Inject(at=@At("HEAD"),method = "appendTooltip")
     private void booktrolling$handleItemSizeDebug(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type, CallbackInfo ci) {
         if (!Booktrolling.itemSizeDebug || stack.isEmpty()) {
             return;
