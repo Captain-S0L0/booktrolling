@@ -1,9 +1,9 @@
 package com.terriblefriends.booktrolling.mixins.tooltips;
 
-import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.item.BannerItem;
 import net.minecraft.item.Item;
 import net.minecraft.item.ItemStack;
+import net.minecraft.item.tooltip.TooltipType;
 import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
