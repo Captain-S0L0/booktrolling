@@ -1,10 +1,10 @@
 package com.terriblefriends.booktrolling.mixins;
 
 import com.terriblefriends.booktrolling.ToggleButton;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.BookEditScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.util.SelectionManager;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
 import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
@@ -18,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Callable;
@@ -26,13 +27,18 @@ import java.util.concurrent.Callable;
 public abstract class BookEditScreenMixin extends Screen {
     @Shadow private boolean dirty;
     @Shadow @Final private List<String> pages;
+    @Shadow private String title;
+    @Shadow private int currentPage;
+    @Shadow private boolean signing;
+    @Shadow private ButtonWidget finalizeButton;
+
     @Shadow protected abstract void finalizeBook(boolean bool);
     @Shadow protected abstract String getCurrentPageContent();
     @Shadow protected abstract void setPageContent(String newContent);
     @Shadow protected abstract String getClipboard();
     @Shadow protected abstract void setClipboard(String clipboard);
-    @Shadow private String title;
-
+    @Shadow protected abstract void invalidatePageContent();
+    @Shadow protected abstract void updateButtons();
 
     @Final @Shadow @Mutable private SelectionManager currentPageSelectionManager = new SelectionManager(this::getCurrentPageContent, this::setPageContent, this::getClipboard, this::setClipboard, (string) -> {
         return string.length() <= 1024;
@@ -40,16 +46,18 @@ public abstract class BookEditScreenMixin extends Screen {
     @Final @Shadow @Mutable private SelectionManager bookTitleSelectionManager = new SelectionManager(() -> this.title, title -> this.title = title, this::getClipboard, this::setClipboard, (string) -> {
         return string.length() <= 32;
     });
+
+    @Unique
+    private final List<ClickableWidget> customButtons = new ArrayList<>();
+
     @Unique
     private static boolean autoSign = false;
     @Unique
     private static boolean drop = false;
     @Unique
     private static boolean randomizeChars = false;
-
     @Unique
     private static final Random RANDOM = new Random();
-
     @Unique
     private static final Callable<Character> RANDOM_CHAR_PROVIDER = () -> (char)RANDOM.nextInt(2048, 65536);
     @Unique
@@ -71,22 +79,23 @@ public abstract class BookEditScreenMixin extends Screen {
                 this.pages.add(pageGenerator.call());
             }
 
+            this.currentPage = 0;
             this.dirty = true;
+            this.invalidatePageContent();
+            this.updateButtons();
 
             if (signing) {
                 this.title = titleGenerator.call();
             }
 
-            this.finalizeBook(signing);
-
-            if (drop) {
-                float[] rotation = {this.client.player.getYaw(), this.client.player.getPitch()};
-                this.client.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(0.0f, 0.0f, false));
-                this.client.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.DROP_ITEM, BlockPos.ORIGIN, Direction.DOWN));
-                this.client.getNetworkHandler().sendPacket(new PlayerMoveC2SPacket.LookAndOnGround(rotation[0], rotation[1], false));
+            if (drop || signing) {
+                this.finalizeBook(signing);
+                this.client.setScreen(null);
             }
 
-            this.client.setScreen(null);
+            if (drop) {
+                this.client.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.DROP_ITEM, BlockPos.ORIGIN, Direction.DOWN));
+            }
         }
         catch (Exception e) {
             e.printStackTrace();
@@ -94,10 +103,16 @@ public abstract class BookEditScreenMixin extends Screen {
         }
     }
 
+    @Override
+    public void close() {
+        this.finalizeBook(false);
+        super.close();
+    }
+
     @Inject(at=@At("HEAD"),method="Lnet/minecraft/client/gui/screen/ingame/BookEditScreen;init()V")
     private void booktrolling$addGuiButtons(CallbackInfo ci) {
         int y = 0;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
             this.sign(100, autoSign, drop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
@@ -106,9 +121,9 @@ public abstract class BookEditScreenMixin extends Screen {
                 }
                 return builder.toString();
             }, () -> BRANDING);
-        }).dimensions(0, y, 98, 20).build());
+        }).dimensions(0, y, 98, 20).build()));
         y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("max unsigned"), (button) -> {
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("max"), (button) -> {
             this.sign(100, autoSign, drop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
@@ -117,9 +132,9 @@ public abstract class BookEditScreenMixin extends Screen {
                 }
                 return builder.toString();
             }, () -> BRANDING);
-        }).dimensions(0, y, 98, 20).build());
+        }).dimensions(0, y, 98, 20).build()));
         y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("max signed"), (button) -> {
+        /*this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("max signed"), (button) -> {
             this.sign(100, true, drop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
@@ -128,9 +143,9 @@ public abstract class BookEditScreenMixin extends Screen {
                 }
                 return builder.toString();
             }, () -> BRANDING);
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("paper"), (button) -> {
+        }).dimensions(0, y, 98, 20).build()));
+        y+=20;*/
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("paper"), (button) -> {
             this.sign(100, autoSign, drop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
@@ -139,29 +154,36 @@ public abstract class BookEditScreenMixin extends Screen {
                 }
                 return builder.toString();
             }, () -> BRANDING);
-        }).dimensions(0, y, 98, 20).build());
+        }).dimensions(0, y, 98, 20).build()));
         y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("unsaveable"), (button) -> {
+        /*this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("unsaveable"), (button) -> {
             this.sign(1, true, drop, () -> "", () -> "123456789012345678901234567890123");
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;
-        this.addDrawableChild(ButtonWidget.builder(Text.literal("clear"), (button) -> {
+        }).dimensions(0, y, 98, 20).build()));
+        y+=20;*/
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("clear"), (button) -> {
             this.sign(1, false, drop, () -> {
                 return "";
             }, () -> BRANDING);
 
-        }).dimensions(0, y, 98, 20).build());
+        }).dimensions(0, y, 98, 20).build()));
         y+=20;
 
-        this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("AutoSign"), () -> {
+        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("AutoSign"), () -> {
             autoSign = !autoSign;
-        }, autoSign));
-        this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("RandomizeChars"), () -> {
+        }, autoSign)));
+        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("RandomizeChars"), () -> {
             randomizeChars = !randomizeChars;
-        }, randomizeChars));
-        this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Drop"), () -> {
+        }, randomizeChars)));
+        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Drop"), () -> {
             drop = !drop;
-        }, drop));
+        }, drop)));
+    }
+
+    @Inject(method = "updateButtons", at = @At("TAIL"))
+    private void booktrolling$updateButtons(CallbackInfo ci) {
+        for (ClickableWidget w : this.customButtons) {
+            w.visible = !this.signing;
+        }
     }
 
     @Inject(at=@At("HEAD"),method="keyPressedSignMode",cancellable = true)

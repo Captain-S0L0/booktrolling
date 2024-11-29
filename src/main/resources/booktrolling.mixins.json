@@ -13,8 +13,6 @@
     "PacketInflaterMixin",
 
     "tooltips.BannerItemMixin",
-    "tooltips.BannerPatternItemMixin",
-    "tooltips.BundleItemMixin",
     "tooltips.CrossbowItemMixin",
     "tooltips.DiscFragmentItemMixin",
     "tooltips.EntityBucketItemMixin",
