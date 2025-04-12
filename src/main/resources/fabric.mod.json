@@ -18,7 +18,7 @@
     "booktrolling.mixins.json"
   ],
   "depends": {
-    "fabricloader": ">=0.14.10",
+    "fabricloader": ">=0.16.13",
     "minecraft": "1.21.X"
   }
 }

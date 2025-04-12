@@ -1,20 +1,12 @@
-package com.terriblefriends.booktrolling.mixins;
+package com.terriblefriends.booktrolling;
 
 import com.mojang.logging.LogUtils;
-import com.terriblefriends.booktrolling.Booktrolling;
-import com.terriblefriends.booktrolling.ItemSizeThread;
+import net.minecraft.item.*;
 import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
 import net.minecraft.network.encoding.VarInts;
 import net.minecraft.text.MutableText;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 import java.util.concurrent.ExecutionException;
@@ -22,39 +14,27 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
-@Mixin(Item.class)
-public class ItemMixin {
-    @Unique
+public class ItemSizeDisplay {
     private static final ExecutorService threadPool = Executors.newFixedThreadPool(1);
-    @Unique
     private static ItemStack lastStack = null;
-    @Unique
     private static ItemSizeThread.Results oldResults = null;
-    @Unique
     private static Future<?> currentTask = null;
-    @Unique
     private static ItemSizeThread currentThread = null;
 
-    @Unique
     private static final int WARNING_THRESHOLD = 8192;
-    @Unique
     private static final int PACKET_RAW_LIMIT = 8388608;
-    @Unique
     private static final int NBT_SIZE_TRACKER_LIMIT = 2097152;
 
-    @Unique
     private static final Text WARNING_TEXT = Text.literal(" (WARNING)").formatted(Formatting.GOLD);
-    @Unique
     private static final Text OVERSIZED_TEXT = Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED);
-
-    @Inject(at=@At("HEAD"),method = "appendTooltip")
-    private void booktrolling$handleItemSizeDebug(ItemStack stack, Item.TooltipContext context, List<Text> tooltip, TooltipType type, CallbackInfo ci) {
-        if (!Booktrolling.itemSizeDebug || stack.isEmpty()) {
+    public void handleItemSizeDebug(ItemStack itemStack, Item.TooltipContext tooltipContext, TooltipType tooltipType, List<Text> tooltip){
+        if (!Booktrolling.itemSizeDebug || itemStack.isEmpty()) {
             return;
         }
 
-        if (oldResults != null && ItemStack.areEqual(lastStack, stack)) {
+        if (oldResults != null && ItemStack.areEqual(lastStack, itemStack)) {
             appendData(tooltip, oldResults);
+
             return;
         }
         if (currentTask != null) {
@@ -76,14 +56,12 @@ public class ItemMixin {
             }
         }
         else {
-            lastStack = stack;
+            lastStack = itemStack;
             oldResults = null;
-            currentThread = new ItemSizeThread(stack);
+            currentThread = new ItemSizeThread(itemStack);
             currentTask = threadPool.submit(currentThread);
         }
     }
-
-    @Unique
     private static void appendData(List<Text> tooltip, ItemSizeThread.Results results) {
         if (results.error) {
             tooltip.add(Text.literal("ERROR CALCULATING SIZE! See logs!").formatted(Formatting.DARK_RED));
@@ -119,7 +97,6 @@ public class ItemMixin {
         tooltip.add(line);
     }
 
-    @Unique
     private static String toReadableNumber(long value) {
         if (Booktrolling.rawSizes) {
             return value + " bytes";
