@@ -6,26 +6,37 @@ This is a FABRIC mod.
 
 
 **Changes provided:**
-  - Allows up to 8,192 characters / page in multiplayer (limit of BookUpdateC2SPacket.write()), or 32,767 in singleplayer (limit of WritableBookItem.isValid())
-  - Allows titles up to 128 characters in length in multiplayer (limit of BookUpdateC2SPacket.write()), or 65,535 in singleplayer (limit of NbtString.write())
-  - Allows written books with titles > 31 characters in length to be parsed (in vanilla, books with titles longer than 31 characters are treated as "invalid" and will not display contents on book screen)
-  - Prevents client-side kicks as a result of NbtTagSizeTracker tracking more than 2,097,152 bytes
-  - Toggleable item size debug information in hover tooltip (toggleable on in-game pause menu, default false)
-
+- Allows up to 1,024 characters / page regardless of character width (limit of WritableBookContentComponent)
+- Allows titles up to 32 characters in length (limit of WrittenBookContentComponent)
+- Toggleable item size debug information in hover tooltip (toggleable on in-game pause menu, default false)
 
 **Book Presets:**
-  - Vanilla: 100 pages each with 1,023 3 byte characters (this is achieveable in vanilla by utilizing a resource pack to edit the width of characters, then limited by a hardcoded < 1024 character check in the book edit GUI)
-  - Singleplayer: 100 pages each with 21,837 3 byte characters (singleplayer only, limit of NbtString.write())
-  - Multiplayer: 100 pages each with 8,192 3 byte characters (limit of BookUpdateC2SPacket.write())
-  - Paper: 100 pages each with 320 3 byte characters (respects limits of PaperMC servers and its forks)
-  - Clear: removes all contents of a book
-  - AutoSign: automatically sign book when using presets (toggleable, default false)
-  - RandomizeChars: generate random characters, or use a single one (toggleable, default true)
+- Vanilla: 100 pages each with 1,023 3 byte characters (this is achievable in vanilla by utilizing a resource pack to edit the
+width of characters, then limited by a hardcoded < 1024 character check in the book edit GUI)
+- Max: 100 pages each with 1,024 3 byte characters (limit of WritableBookContentComponent)
+- Paper: 100 pages each with 320 3 byte characters (respects default limits of PaperMC servers and its forks)
+- Clear: removes all contents of a book
+- Auto Sign: automatically sign book when using presets (toggleable, default false)
+- Randomize Chars: generate random characters, or use a single one (toggleable, default false)
+- Drop: automatically drop book when using presets (toggleable, default false)
 
 
 **Item Size Debug**:
 
-The item size debug tooltip can help provide approximates for relavent size information. It is not expected to be exact.
-  - BYTES: bytes written by PacketByteBuf.writeItemStack. A decent approximation of what is utilized in RAM. Important to consider as if > 8388608, creates server-side kicks
-  - NBT: bytes counted by NbtTagSizeTracker during NbtIo.read. Important to consider as if > 2,097,152, creates client-side kicks
-  - COMPRESS: bytes written by compressing PacketByteBuf.writeItemStack with java.util.zip.Deflater. A decent approximation of what is written to disk. Important to consider if resulting item packets are incompressible (PacketByteBuf.getVarIntLength(buf.readableBytes()) > 3), creates server-side kicks
+The item size debug tooltip can help provide approximates for relevant size information. It is not expected to be exact.
+
+Two statistics are provided: disk size and packet size, each with a raw and a compressed value.
+
+Raw disk size is a decent approximation as to what is utilized in RAM. Useful for OutOfMemory suppression or similar.
+
+If the compressed disk size of a chunk is more than the 32-bit integer limit of bytes (~2.147 GB), then the chunk will never
+be able to save as the process to save a chunk to disk includes creating a byte array with the compressed data. Arrays cannot
+exceed the 32-bit integer limit of elements in practically all JVM implementations (plus or minus a few for header stuff).
+
+Raw packet size cannot exceed 8,388,608 bytes, or the server will kick any player who would receive such a packet.
+
+Compressed packet size cannot exceed 2,097,152 bytes, or the server will kick any player who would receive such a packet.
+
+**Old Versions**:
+This readme contains relevant information for Minecraft versions 1.20.5 (24w09a) and newer. For 1.20.4 (24w07a) and lower, please see
+the old readme at [README-pre-24w09a.md](https://github.com/Captain-S0L0/booktrolling/README-pre-24w09a.md).
