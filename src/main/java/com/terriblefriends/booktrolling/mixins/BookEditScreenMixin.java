@@ -1,5 +1,7 @@
 package com.terriblefriends.booktrolling.mixins;
 
+import com.mojang.logging.LogUtils;
+import com.terriblefriends.booktrolling.Config;
 import com.terriblefriends.booktrolling.ToggleButton;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.BookEditScreen;
@@ -7,11 +9,11 @@ import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.gui.widget.ClickableWidget;
 import net.minecraft.client.util.SelectionManager;
 import net.minecraft.network.packet.c2s.play.PlayerActionC2SPacket;
-import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
 import net.minecraft.text.Text;
 import net.minecraft.util.Formatting;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
+import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.*;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -25,12 +27,24 @@ import java.util.concurrent.Callable;
 
 @Mixin(BookEditScreen.class)
 public abstract class BookEditScreenMixin extends Screen {
+    // static finals, magic numbers, constants, etc
+    @Unique
+    private static final Logger LOGGER = LogUtils.getLogger();
+    @Unique
+    private static final Random RANDOM = new Random();
+    @Unique
+    private static final Callable<Character> RANDOM_CHAR_PROVIDER = () -> (char)RANDOM.nextInt(2048, 65536);
+    @Unique
+    private static final Callable<Character> STATIC_CHAR_PROVIDER = () -> (char)2048;
+    @Unique
+    private static final String BRANDING = "BookTrolling™ by Captain_S0L0";
+
+    // accessors
     @Shadow private boolean dirty;
     @Shadow @Final private List<String> pages;
     @Shadow private String title;
     @Shadow private int currentPage;
     @Shadow private boolean signing;
-    @Shadow private ButtonWidget finalizeButton;
 
     @Shadow protected abstract void finalizeBook(boolean bool);
     @Shadow protected abstract String getCurrentPageContent();
@@ -47,24 +61,9 @@ public abstract class BookEditScreenMixin extends Screen {
         return string.length() <= 32;
     });
 
+    // vars
     @Unique
     private final List<ClickableWidget> customButtons = new ArrayList<>();
-
-    @Unique
-    private static boolean autoSign = false;
-    @Unique
-    private static boolean drop = false;
-    @Unique
-    private static boolean randomizeChars = false;
-    @Unique
-    private static final Random RANDOM = new Random();
-    @Unique
-    private static final Callable<Character> RANDOM_CHAR_PROVIDER = () -> (char)RANDOM.nextInt(2048, 65536);
-    @Unique
-    private static final Callable<Character> STATIC_CHAR_PROVIDER = () -> (char)2048;
-    @Unique
-    private static final String BRANDING = "BookTrolling™ by Captain_S0L0";
-
 
     protected BookEditScreenMixin(Text title) {
         super(title);
@@ -94,11 +93,11 @@ public abstract class BookEditScreenMixin extends Screen {
             }
 
             if (drop) {
-                this.client.getNetworkHandler().sendPacket(new PlayerActionC2SPacket(PlayerActionC2SPacket.Action.DROP_ITEM, BlockPos.ORIGIN, Direction.DOWN));
+                this.client.player.dropSelectedItem(true);
             }
         }
         catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("BookTrolling failed to generate a book!", e);
             this.client.inGameHud.getChatHud().addMessage(Text.literal("<BookTrolling> Error generating book! See logs!").formatted(Formatting.DARK_RED));
         }
     }
@@ -113,7 +112,7 @@ public abstract class BookEditScreenMixin extends Screen {
     private void booktrolling$addGuiButtons(CallbackInfo ci) {
         int y = 0;
         this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
-            this.sign(100, autoSign, drop, () -> {
+            this.sign(100, Config.get().autoSign, Config.get().autoDrop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
                 for (int i = 0; i < 1023; i++) {
@@ -123,8 +122,8 @@ public abstract class BookEditScreenMixin extends Screen {
             }, () -> BRANDING);
         }).dimensions(0, y, 98, 20).build()));
         y+=20;
-        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("max"), (button) -> {
-            this.sign(100, autoSign, drop, () -> {
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("Max"), (button) -> {
+            this.sign(100, Config.get().autoSign, Config.get().autoDrop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
                 for (int i = 0; i < 1024; i++) {
@@ -145,8 +144,8 @@ public abstract class BookEditScreenMixin extends Screen {
             }, () -> BRANDING);
         }).dimensions(0, y, 98, 20).build()));
         y+=20;*/
-        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("paper"), (button) -> {
-            this.sign(100, autoSign, drop, () -> {
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("Paper"), (button) -> {
+            this.sign(100, Config.get().autoSign, Config.get().autoDrop, () -> {
                 StringBuilder builder = new StringBuilder();
                 Callable<Character> charProvider = getCharProvider();
                 for (int i = 0; i < 320; i++) {
@@ -160,23 +159,23 @@ public abstract class BookEditScreenMixin extends Screen {
             this.sign(1, true, drop, () -> "", () -> "123456789012345678901234567890123");
         }).dimensions(0, y, 98, 20).build()));
         y+=20;*/
-        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("clear"), (button) -> {
-            this.sign(1, false, drop, () -> {
+        this.customButtons.add(this.addDrawableChild(ButtonWidget.builder(Text.literal("Clear"), (button) -> {
+            this.sign(1, false, Config.get().autoDrop, () -> {
                 return "";
             }, () -> BRANDING);
 
         }).dimensions(0, y, 98, 20).build()));
         y+=20;
 
-        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("AutoSign"), () -> {
-            autoSign = !autoSign;
-        }, autoSign)));
-        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("RandomizeChars"), () -> {
-            randomizeChars = !randomizeChars;
-        }, randomizeChars)));
-        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Drop"), () -> {
-            drop = !drop;
-        }, drop)));
+        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("Auto Sign"), () -> {
+            Config.get().autoSign = !Config.get().autoSign;
+        }, Config.get().autoSign)));
+        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("Randomize Chars"), () -> {
+            Config.get().randomizeCharacters = !Config.get().randomizeCharacters;
+        }, Config.get().randomizeCharacters)));
+        this.customButtons.add(this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Auto Drop"), () -> {
+            Config.get().autoDrop = !Config.get().autoDrop;
+        }, Config.get().autoDrop)));
     }
 
     @Inject(method = "updateButtons", at = @At("TAIL"))
@@ -233,6 +232,6 @@ public abstract class BookEditScreenMixin extends Screen {
 
     @Unique
     private static Callable<Character> getCharProvider() {
-        return randomizeChars ? RANDOM_CHAR_PROVIDER : STATIC_CHAR_PROVIDER;
+        return Config.get().randomizeCharacters ? RANDOM_CHAR_PROVIDER : STATIC_CHAR_PROVIDER;
     }
 }

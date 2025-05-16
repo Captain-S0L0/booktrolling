@@ -10,8 +10,8 @@
   "icon": "assets/booktrolling/icon.png",
   "environment": "*",
   "entrypoints": {
-    "main": [
-      "com.terriblefriends.booktrolling.Booktrolling"
+    "client": [
+      "com.terriblefriends.booktrolling.BookTrolling"
     ]
   },
   "mixins": [

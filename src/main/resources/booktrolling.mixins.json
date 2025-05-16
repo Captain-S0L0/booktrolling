@@ -5,25 +5,10 @@
   "compatibilityLevel": "JAVA_17",
   "client": [
     "BookEditScreenMixin",
-    "ClientConnectionMixin",
     "GameMenuScreenMixin",
     "ItemEntityMixin",
-    "ItemMixin",
-    "LecternScreenMixin",
-    "PacketInflaterMixin",
-
-    "tooltips.BannerItemMixin",
-    "tooltips.CrossbowItemMixin",
-    "tooltips.DiscFragmentItemMixin",
-    "tooltips.EntityBucketItemMixin",
-    "tooltips.FilledMapItemMixin",
-    "tooltips.FireworkRocketItemMixin",
-    "tooltips.FireworkStarItemMixin",
-    "tooltips.LingeringPotionItemMixin",
-    "tooltips.PotionItemMixin",
-    "tooltips.ShieldItemMixin",
-    "tooltips.TippedArrowItemMixin",
-    "tooltips.WrittenBookItemMixin"
+    "ItemStackMixin",
+    "LecternScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
