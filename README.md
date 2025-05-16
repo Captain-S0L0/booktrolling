@@ -39,4 +39,4 @@ Compressed packet size cannot exceed 2,097,152 bytes, or the server will kick an
 
 **Old Versions**:
 This readme contains relevant information for Minecraft versions 1.20.5 (24w09a) and newer. For 1.20.4 (24w07a) and lower, please see
-the old readme at [README-pre-24w09a.md](https://github.com/Captain-S0L0/booktrolling/README-pre-24w09a.md).
+the old readme at [README-pre-24w09a.md](https://github.com/Captain-S0L0/booktrolling/blob/master/README-pre-24w09a.md).
