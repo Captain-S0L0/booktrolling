@@ -116,13 +116,13 @@ public abstract class BookEditScreenMixin extends Screen {
         }).dimensions(0, y, 98, 20).build());
         y+=20;
 
-        this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("Auto Sign"), () -> {
+        this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("Auto Sign"), (button) -> {
             Config.get().autoSign = !Config.get().autoSign;
         }, Config.get().autoSign));
-        this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("Randomize Chars"), () -> {
+        this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("Randomize Chars"), (button) -> {
             Config.get().randomizeCharacters = !Config.get().randomizeCharacters;
         }, Config.get().randomizeCharacters));
-        this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Auto Drop"), () -> {
+        this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Auto Drop"), (button) -> {
             Config.get().autoDrop = !Config.get().autoDrop;
         }, Config.get().autoDrop));
     }

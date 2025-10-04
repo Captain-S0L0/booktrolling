@@ -1,7 +1,6 @@
 package com.terriblefriends.booktrolling.mixins;
 
 import com.mojang.logging.LogUtils;
-import com.terriblefriends.booktrolling.BookTrolling;
 import com.terriblefriends.booktrolling.Config;
 import com.terriblefriends.booktrolling.ItemSizeResults;
 import com.terriblefriends.booktrolling.LongCountingDataOutputStream;
