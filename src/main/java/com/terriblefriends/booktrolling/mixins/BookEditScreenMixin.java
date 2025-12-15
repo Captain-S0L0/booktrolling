@@ -2,7 +2,6 @@ package com.terriblefriends.booktrolling.mixins;
 
 import com.mojang.logging.LogUtils;
 import com.terriblefriends.booktrolling.Config;
-import com.terriblefriends.booktrolling.ToggleButton;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.ingame.BookEditScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
@@ -25,7 +24,6 @@ import java.util.concurrent.Callable;
 
 @Mixin(BookEditScreen.class)
 public abstract class BookEditScreenMixin extends Screen {
-    // static finals, magic numbers, constants, etc
     @Unique
     private static final Logger LOGGER = LogUtils.getLogger();
     @Unique
@@ -37,7 +35,6 @@ public abstract class BookEditScreenMixin extends Screen {
     @Unique
     private static final String BRANDING = "BookTrolling™ by Captain_S0L0";
 
-    // accessors
     @Shadow @Final private PlayerEntity player;
     @Shadow @Final private Hand hand;
     @Shadow @Final private List<String> pages;
@@ -53,16 +50,17 @@ public abstract class BookEditScreenMixin extends Screen {
 
     @Override
     public void close() {
-        // update contents but don't sign if screen was closed
         this.finalizeBook();
         super.close();
     }
 
     @Inject(method="init", at=@At("TAIL"))
     private void booktrolling$initBookEditScreen(CallbackInfo ci) {
-        this.editBox.setMaxLines(Integer.MAX_VALUE); // disable checking character width
+        this.editBox.setMaxLines(Integer.MAX_VALUE);
 
         int y = 0;
+        
+        // --- Standard Actions ---
         this.addDrawableChild(ButtonWidget.builder(Text.literal("1023"), (button) -> {
             this.createBook(100, Config.get().autoSign, Config.get().autoDrop, () -> {
                 StringBuilder builder = new StringBuilder();
@@ -74,6 +72,7 @@ public abstract class BookEditScreenMixin extends Screen {
             }, () -> BRANDING);
         }).dimensions(0, y, 98, 20).build());
         y+=20;
+
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Max"), (button) -> {
             this.createBook(100, Config.get().autoSign, Config.get().autoDrop, () -> {
                 StringBuilder builder = new StringBuilder();
@@ -85,17 +84,7 @@ public abstract class BookEditScreenMixin extends Screen {
             }, () -> BRANDING);
         }).dimensions(0, y, 98, 20).build());
         y+=20;
-        /*this.addDrawableChild(ButtonWidget.builder(Text.literal("max signed"), (button) -> {
-            this.sign(100, true, drop, () -> {
-                StringBuilder builder = new StringBuilder();
-                Callable<Character> charProvider = getCharProvider();
-                for (int i = 0; i < 8192; i++) {
-                    builder.append(charProvider.call());
-                }
-                return builder.toString();
-            }, () -> BRANDING);
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;*/
+
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Paper"), (button) -> {
             this.createBook(100, Config.get().autoSign, Config.get().autoDrop, () -> {
                 StringBuilder builder = new StringBuilder();
@@ -107,40 +96,50 @@ public abstract class BookEditScreenMixin extends Screen {
             }, () -> BRANDING);
         }).dimensions(0, y, 98, 20).build());
         y+=20;
-        /*this.addDrawableChild(ButtonWidget.builder(Text.literal("unsaveable"), (button) -> {
-            this.sign(1, true, drop, () -> "", () -> "123456789012345678901234567890123");
-        }).dimensions(0, y, 98, 20).build());
-        y+=20;*/
+
         this.addDrawableChild(ButtonWidget.builder(Text.literal("Clear"), (button) -> {
             this.createBook(1, false, Config.get().autoDrop, () -> "", () -> BRANDING);
         }).dimensions(0, y, 98, 20).build());
         y+=20;
 
-        this.addDrawableChild(new ToggleButton(0, this.height-20, 98, 20, Text.literal("Auto Sign"), (button) -> {
+        // --- Toggles (Fixed using Standard Buttons) ---
+        
+        // Auto Sign
+        this.addDrawableChild(ButtonWidget.builder(getToggleText("Auto Sign", Config.get().autoSign), (button) -> {
             Config.get().autoSign = !Config.get().autoSign;
-        }, Config.get().autoSign));
-        this.addDrawableChild(new ToggleButton(0, this.height-40, 98, 20, Text.literal("Randomize Chars"), (button) -> {
+            button.setMessage(getToggleText("Auto Sign", Config.get().autoSign));
+        }).dimensions(0, this.height-20, 98, 20).build());
+
+        // Randomize Chars
+        this.addDrawableChild(ButtonWidget.builder(getToggleText("Randomize Chars", Config.get().randomizeCharacters), (button) -> {
             Config.get().randomizeCharacters = !Config.get().randomizeCharacters;
-        }, Config.get().randomizeCharacters));
-        this.addDrawableChild(new ToggleButton(0, this.height-60, 98, 20, Text.literal("Auto Drop"), (button) -> {
+            button.setMessage(getToggleText("Randomize Chars", Config.get().randomizeCharacters));
+        }).dimensions(0, this.height-40, 98, 20).build());
+
+        // Auto Drop
+        this.addDrawableChild(ButtonWidget.builder(getToggleText("Auto Drop", Config.get().autoDrop), (button) -> {
             Config.get().autoDrop = !Config.get().autoDrop;
-        }, Config.get().autoDrop));
+            button.setMessage(getToggleText("Auto Drop", Config.get().autoDrop));
+        }).dimensions(0, this.height-60, 98, 20).build());
+    }
+
+    // Helper to color text Green (ON) or Red (OFF)
+    @Unique
+    private Text getToggleText(String name, boolean active) {
+        return Text.literal(name).formatted(active ? Formatting.GREEN : Formatting.RED);
     }
 
     @Unique
     private void createBook(int pageCount, boolean signing, boolean drop, Callable<String> pageGenerator, Callable<String> titleGenerator) {
         try {
             this.pages.clear();
-
             for (int i = 0; i < pageCount; i++) {
                 this.pages.add(pageGenerator.call());
             }
-
             this.currentPage = 0;
             this.updatePage();
 
             Optional<String> title = Optional.empty();
-
             if (signing) {
                 title = Optional.of(titleGenerator.call());
             }
@@ -150,7 +149,6 @@ public abstract class BookEditScreenMixin extends Screen {
                 this.client.getNetworkHandler().sendPacket(new BookUpdateC2SPacket(i, this.pages, title));
                 this.client.setScreen(null);
             }
-
             if (drop) {
                 this.client.player.dropSelectedItem(true);
             }
