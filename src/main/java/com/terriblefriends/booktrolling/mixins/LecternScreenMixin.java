@@ -5,7 +5,7 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.LecternScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,11 +26,11 @@ public abstract class LecternScreenMixin extends Screen {
 
             int slotToFill = this.minecraft.player.getInventory().getFreeSlot();
             if (slotToFill != -1) {
-                this.minecraft.gameMode.handleInventoryMouseClick(this.minecraft.player.containerMenu.containerId, 0, slotToFill, ClickType.SWAP, this.minecraft.player);
-                this.minecraft.gui.getChat().addMessage(Component.literal("<BookTrolling> Shadowed book...").withStyle(ChatFormatting.RED));
+                this.minecraft.gameMode.handleContainerInput(this.minecraft.player.containerMenu.containerId, 0, slotToFill, ContainerInput.SWAP, this.minecraft.player);
+                this.minecraft.gui.getChat().addClientSystemMessage(Component.literal("<BookTrolling> Shadowed book...").withStyle(ChatFormatting.RED));
             }
             else {
-                this.minecraft.gui.getChat().addMessage(Component.literal("<BookTrolling> Error! No room in inventory!").withStyle(ChatFormatting.RED));
+                this.minecraft.gui.getChat().addClientSystemMessage(Component.literal("<BookTrolling> Error! No room in inventory!").withStyle(ChatFormatting.RED));
             }
         }).bounds(this.width - 98, this.height - 40, 98, 20).build());
     }

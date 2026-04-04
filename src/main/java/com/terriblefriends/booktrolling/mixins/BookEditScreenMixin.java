@@ -157,7 +157,7 @@ public abstract class BookEditScreenMixin extends Screen {
         }
         catch (Exception e) {
             LOGGER.error("BookTrolling failed to generate book!", e);
-            this.minecraft.gui.getChat().addMessage(Component.literal("<BookTrolling> Error generating book! See logs!").withStyle(ChatFormatting.DARK_RED));
+            this.minecraft.gui.getChat().addClientSystemMessage(Component.literal("<BookTrolling> Error generating book! See logs!").withStyle(ChatFormatting.DARK_RED));
         }
     }
 
