@@ -5,20 +5,20 @@ import com.terriblefriends.booktrolling.Config;
 import com.terriblefriends.booktrolling.ItemSizeResults;
 import com.terriblefriends.booktrolling.LongCountingDataOutputStream;
 import io.netty.buffer.Unpooled;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.component.type.TooltipDisplayComponent;
-import net.minecraft.entity.player.PlayerEntity;
-import net.minecraft.item.Item;
-import net.minecraft.item.ItemStack;
-import net.minecraft.item.tooltip.TooltipType;
-import net.minecraft.nbt.NbtCompound;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
-import net.minecraft.network.PacketByteBuf;
-import net.minecraft.network.RegistryByteBuf;
-import net.minecraft.network.encoding.VarInts;
-import net.minecraft.text.MutableText;
-import net.minecraft.text.Text;
-import net.minecraft.util.Formatting;
+import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.network.RegistryFriendlyByteBuf;
+import net.minecraft.network.VarInt;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import org.slf4j.Logger;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -39,11 +39,11 @@ import java.util.zip.GZIPOutputStream;
 public class ItemStackMixin {
     // magic numbers and constants
     @Unique
-    private static final Text WARNING_TEXT = Text.literal(" (WARNING)").formatted(Formatting.GOLD);
+    private static final Component WARNING_TEXT = Component.literal(" (WARNING)").withStyle(ChatFormatting.GOLD);
     @Unique
-    private static final Text OVERSIZED_TEXT = Text.literal(" (OVERSIZED)").formatted(Formatting.DARK_RED);
+    private static final Component OVERSIZED_TEXT = Component.literal(" (OVERSIZED)").withStyle(ChatFormatting.DARK_RED);
     @Unique
-    private static final Text GENERIC_ERROR_TEXT = Text.literal("ERROR CALCULATING ITEM SIZE! SEE LOGS!").formatted(Formatting.DARK_RED);
+    private static final Component GENERIC_ERROR_TEXT = Component.literal("ERROR CALCULATING ITEM SIZE! SEE LOGS!").withStyle(ChatFormatting.DARK_RED);
 
     // static finals
     @Unique
@@ -63,13 +63,13 @@ public class ItemStackMixin {
     @Unique
     private final ItemStack instance = (ItemStack) (Object) this;
 
-    @Inject(method = "appendTooltip", at = @At("TAIL"))
-    private void booktrolling$handleItemSizeDebug(Item.TooltipContext context, TooltipDisplayComponent displayComponent, PlayerEntity player, TooltipType type, Consumer<Text> textConsumer, CallbackInfo ci) {
+    @Inject(method = "addDetailsToTooltip", at = @At("TAIL"))
+    private void booktrolling$handleItemSizeDebug(Item.TooltipContext context, TooltipDisplay displayComponent, Player player, TooltipFlag type, Consumer<Component> textConsumer, CallbackInfo ci) {
         if (!Config.get().itemSizeDebug || this.instance.isEmpty()) {
             return;
         }
 
-        boolean taskStackEqual = lastCalculatedStack != null && (this.instance == lastCalculatedStack || ItemStack.areItemsAndComponentsEqual(this.instance, lastCalculatedStack));
+        boolean taskStackEqual = lastCalculatedStack != null && (this.instance == lastCalculatedStack || ItemStack.isSameItemSameComponents(this.instance, lastCalculatedStack));
 
         if (taskStackEqual) {
             // check if current task is done
@@ -89,7 +89,7 @@ public class ItemStackMixin {
 
             // if lastResults is null then the thread is still calculating, so hold on
             if (lastResults == null) {
-                textConsumer.accept(Text.literal("Calculating...").formatted(Formatting.RED));
+                textConsumer.accept(Component.literal("Calculating...").withStyle(ChatFormatting.RED));
                 return;
             }
 
@@ -104,8 +104,8 @@ public class ItemStackMixin {
             currentTask.cancel(true);
         }
         currentTask = threadPool.submit(() -> {
-            MinecraftClient minecraftClient = MinecraftClient.getInstance();
-            if (minecraftClient == null || minecraftClient.world == null) {
+            Minecraft minecraftClient = Minecraft.getInstance();
+            if (minecraftClient == null || minecraftClient.level == null) {
                 LOGGER.error("Failed to calculate item size! Reason: MinecraftClient or MinecraftClient.world was null!");
                 return new ItemSizeResults(true, -1, -1, -1, -1);
             }
@@ -117,7 +117,7 @@ public class ItemStackMixin {
 
             try {
                 // calculate disk sizes
-                NbtCompound itemTag = (NbtCompound)ItemStack.CODEC.encode(this.instance, minecraftClient.world.getRegistryManager().getOps(NbtOps.INSTANCE), new NbtCompound()).getOrThrow();
+                CompoundTag itemTag = (CompoundTag)ItemStack.CODEC.encode(this.instance, minecraftClient.level.registryAccess().createSerializationContext(NbtOps.INSTANCE), new CompoundTag()).getOrThrow();
 
                 LongCountingDataOutputStream compressedDataOutputStream = new LongCountingDataOutputStream(OutputStream.nullOutputStream());
                 GZIPOutputStream gzipOutputStream = new GZIPOutputStream(compressedDataOutputStream);
@@ -131,22 +131,22 @@ public class ItemStackMixin {
                 compressedDiskBytes = compressedDataOutputStream.size();
 
                 // calculate packet sizes
-                RegistryByteBuf packetBuf = new RegistryByteBuf(Unpooled.buffer(), minecraftClient.world.getRegistryManager());
+                RegistryFriendlyByteBuf packetBuf = new RegistryFriendlyByteBuf(Unpooled.buffer(), minecraftClient.level.registryAccess());
 
-                ItemStack.PACKET_CODEC.encode(packetBuf, this.instance);
+                ItemStack.STREAM_CODEC.encode(packetBuf, this.instance);
                 rawPacketBytes = packetBuf.readableBytes();
 
                 // 256 bytes is the default compression threshold
                 if (rawPacketBytes < 256) {
                     compressedPacketBytes = rawPacketBytes + 1;
                 } else {
-                    PacketByteBuf compressionBuf = new PacketByteBuf(Unpooled.buffer());
+                    FriendlyByteBuf compressionBuf = new FriendlyByteBuf(Unpooled.buffer());
                     byte[] deflateBuffer = new byte[8192];
                     Deflater deflater = new Deflater();
 
                     byte[] bs = new byte[rawPacketBytes];
                     packetBuf.readBytes(bs);
-                    VarInts.write(compressionBuf, bs.length);
+                    VarInt.write(compressionBuf, bs.length);
 
                     deflater.setInput(bs, 0, bs.length);
                     deflater.finish();
@@ -168,7 +168,7 @@ public class ItemStackMixin {
     }
 
     @Unique
-    private static void optionalAppendLabel(MutableText text, long value, long max, long warningThreshold) {
+    private static void optionalAppendLabel(MutableComponent text, long value, long max, long warningThreshold) {
         if (value >= max) {
             text.append(OVERSIZED_TEXT);
         }
@@ -178,18 +178,18 @@ public class ItemStackMixin {
     }
 
     @Unique
-    private static void appendData(Consumer<Text> textConsumer, ItemSizeResults results) {
+    private static void appendData(Consumer<Component> textConsumer, ItemSizeResults results) {
         if (results.error()) {
             textConsumer.accept(GENERIC_ERROR_TEXT);
             return;
         }
 
-        MutableText line;
+        MutableComponent line;
 
-        textConsumer.accept(Text.literal("DISK SIZES").formatted(Formatting.RED, Formatting.UNDERLINE));
-        textConsumer.accept(Text.literal("Raw: " + toReadableNumber(results.diskSize())).formatted(Formatting.RED));
+        textConsumer.accept(Component.literal("DISK SIZES").withStyle(ChatFormatting.RED, ChatFormatting.UNDERLINE));
+        textConsumer.accept(Component.literal("Raw: " + toReadableNumber(results.diskSize())).withStyle(ChatFormatting.RED));
 
-        line = Text.literal("Compressed: " + toReadableNumber(results.diskSizeCompressed())).formatted(Formatting.RED);
+        line = Component.literal("Compressed: " + toReadableNumber(results.diskSizeCompressed())).withStyle(ChatFormatting.RED);
         // chunks cannot save if they contain more than the array limit of bytes after compression as in the
         // chunk saving process, the bytes are sent to a byte array before being flushed to disk
         // arrays are limited to approximately Integer.MAX_VALUE - 8 elements, JVM dependent.
@@ -198,16 +198,16 @@ public class ItemStackMixin {
         optionalAppendLabel(line, results.diskSizeCompressed(), Integer.MAX_VALUE - 8, 10485760);
         textConsumer.accept(line);
 
-        textConsumer.accept(Text.literal("PACKET SIZES").formatted(Formatting.RED, Formatting.UNDERLINE));
+        textConsumer.accept(Component.literal("PACKET SIZES").withStyle(ChatFormatting.RED, ChatFormatting.UNDERLINE));
 
-        line = Text.literal("Raw: " + toReadableNumber(results.packetSize())).formatted(Formatting.RED);
+        line = Component.literal("Raw: " + toReadableNumber(results.packetSize())).withStyle(ChatFormatting.RED);
         // packets cannot have more than 8388608 bytes of raw data (net.minecraft.network.handler.PacketDeflater)
 
         // a warning of 128 KB should be fine
         optionalAppendLabel(line, results.packetSize(), 8388608, 128000);
         textConsumer.accept(line);
 
-        line = Text.literal("Compressed: " + toReadableNumber(results.packetSizeCompressed())).formatted(Formatting.RED);
+        line = Component.literal("Compressed: " + toReadableNumber(results.packetSizeCompressed())).withStyle(ChatFormatting.RED);
         // packets cannot have more than 2097152 bytes of compressed data (net.minecraft.network.handler.SizePrepender)
 
         // a warning of 128 KB should be fine
