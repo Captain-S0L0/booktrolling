@@ -148,7 +148,7 @@ public abstract class BookEditScreenMixin extends Screen {
             if (drop || signing) {
                 int i = this.hand == InteractionHand.MAIN_HAND ? this.owner.getInventory().getSelectedSlot() : 40;
                 this.minecraft.getConnection().send(new ServerboundEditBookPacket(i, this.pages, title));
-                this.minecraft.setScreen(null);
+                this.minecraft.gui.setScreen(null);
             }
 
             if (drop) {
@@ -157,7 +157,7 @@ public abstract class BookEditScreenMixin extends Screen {
         }
         catch (Exception e) {
             LOGGER.error("BookTrolling failed to generate book!", e);
-            this.minecraft.gui.getChat().addClientSystemMessage(Component.literal("<BookTrolling> Error generating book! See logs!").withStyle(ChatFormatting.DARK_RED));
+            this.minecraft.gui.hud.getChat().addClientSystemMessage(Component.literal("<BookTrolling> Error generating book! See logs!").withStyle(ChatFormatting.DARK_RED));
         }
     }
 
