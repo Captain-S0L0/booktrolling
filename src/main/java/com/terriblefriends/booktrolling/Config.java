@@ -18,6 +18,7 @@ public class Config {
     public boolean autoSign = false;
     public boolean autoDrop = false;
     public boolean randomizeCharacters = false;
+    public String autoTitle = "BookTrolling™ by Captain_S0L0";
 
     public static void load() {
         Gson gson = new Gson();

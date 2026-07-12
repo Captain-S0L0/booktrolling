@@ -7,6 +7,7 @@ public class BookTrolling implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         Config.load();
+        Config.save();
 
         Runtime.getRuntime().addShutdownHook(new Thread(Config::save));
     }
